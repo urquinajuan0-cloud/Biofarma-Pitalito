@@ -1,0 +1,2891 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BioFarma Pitalito · Inventario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --azul:#1565D8;
+    --azul-oscuro:#0D3B66;
+    --azul-suave:#E7F1FF;
+    --verde:#6FA83A;
+    --verde-oscuro:#4C7A25;
+    --verde-claro:#EAF6DF;
+    --fondo:#F2F8FF;
+    --blanco:#FFFFFF;
+    --ambar:#F2A93B;
+    --ambar-fondo:#FFF4E0;
+    --rojo:#D64545;
+    --rojo-fondo:#FCE7E7;
+    --texto:#16324A;
+    --texto-suave:#5B7A94;
+    --borde:#DCEBFB;
+    --sombra:0 10px 30px rgba(13,59,102,0.10);
+    --sombra-hover:0 16px 36px rgba(13,59,102,0.18);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--fondo);
+    color:var(--texto);
+    overflow-x:hidden;
+    min-height:100vh;
+  }
+  h1,h2,h3,.brand{font-family:'Fredoka',sans-serif;}
+  .mono{font-family:'Space Mono',monospace;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none;}
+  ::selection{background:var(--verde-claro);}
+
+  /* ---------- Fondo decorativo flotante ---------- */
+  .bg-floaters{position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none;}
+  .floater{position:absolute; opacity:0.14;}
+  .floater svg{width:100%; height:100%; display:block;}
+  .f1{width:90px; top:8%; left:6%; animation:float1 13s ease-in-out infinite;}
+  .f2{width:60px; top:65%; left:12%; animation:float2 16s ease-in-out infinite;}
+  .f3{width:70px; top:20%; left:88%; animation:float3 11s ease-in-out infinite;}
+  .f4{width:50px; top:78%; left:85%; animation:float1 15s ease-in-out infinite reverse;}
+  .f5{width:40px; top:45%; left:50%; animation:float2 19s ease-in-out infinite;}
+  .f6{width:65px; top:10%; left:45%; animation:float3 14s ease-in-out infinite reverse;}
+  @keyframes float1{0%,100%{transform:translate(0,0) rotate(0deg);}50%{transform:translate(24px,-34px) rotate(18deg);}}
+  @keyframes float2{0%,100%{transform:translate(0,0) rotate(0deg);}50%{transform:translate(-30px,20px) rotate(-14deg);}}
+  @keyframes float3{0%,100%{transform:translate(0,0) rotate(0deg);}50%{transform:translate(18px,28px) rotate(10deg);}}
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; gap:16px;
+    padding:12px 24px;
+    background:rgba(255,255,255,0.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--borde);
+  }
+  .logo-btn{
+    display:flex; align-items:center; gap:10px;
+    padding:6px 12px 6px 6px;
+    border-radius:14px;
+    transition:transform .25s ease, background .25s ease;
+  }
+  .logo-btn:hover{background:var(--azul-suave); transform:translateY(-1px);}
+  .logo-btn:active .logo-icon{animation:heartbeat .5s ease;}
+  .logo-icon{
+    width:40px; height:40px; border-radius:11px;
+    background:linear-gradient(145deg, var(--azul), #2E86F5);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 14px rgba(21,101,216,0.35);
+  }
+  @keyframes heartbeat{0%,100%{transform:scale(1);}25%{transform:scale(1.12);}45%{transform:scale(0.94);}65%{transform:scale(1.08);}}
+  .logo-text{text-align:left; line-height:1.05;}
+  .logo-text .l1{font-weight:700; font-size:16px; color:var(--azul-oscuro);}
+  .logo-text .l1 span{color:var(--verde);}
+  .logo-text .l2{font-size:10px; letter-spacing:2px; color:var(--texto-suave); font-weight:600;}
+
+  nav{display:flex; gap:6px; margin-left:8px;}
+  .tab{
+    position:relative;
+    padding:10px 18px;
+    font-weight:600; font-size:14px;
+    color:var(--texto-suave);
+    border-radius:10px;
+    transition:color .2s ease, background .2s ease;
+  }
+  .tab:hover{background:var(--azul-suave); color:var(--azul-oscuro);}
+  .tab.active{color:var(--azul-oscuro);}
+  .tab.active::after{
+    content:''; position:absolute; left:14px; right:14px; bottom:2px; height:3px;
+    background:linear-gradient(90deg, var(--azul), var(--verde));
+    border-radius:3px;
+  }
+
+  .header-right{margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
+  .admin-pill{
+    display:flex; align-items:center; gap:8px;
+    background:var(--verde-claro); color:var(--verde-oscuro);
+    padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
+  }
+  .admin-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--verde); box-shadow:0 0 0 3px rgba(111,168,58,0.25); animation:pulseDot 1.8s infinite;}
+  @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .cajero-pill{
+    display:flex; align-items:center; gap:8px;
+    background:var(--azul-suave); color:var(--azul-oscuro);
+    padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
+  }
+  .cajero-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--azul); box-shadow:0 0 0 3px rgba(21,101,216,0.25); animation:pulseDot 1.8s infinite;}
+  .icon-btn{
+    width:38px; height:38px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--azul-suave); color:var(--azul-oscuro);
+    transition:transform .2s ease, background .2s ease;
+  }
+  .icon-btn:hover{background:#d7e9ff; transform:translateY(-1px) rotate(-4deg);}
+  .icon-btn svg{width:18px; height:18px;}
+
+  main{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:28px 20px 80px;}
+  .view{display:none; animation:viewIn .5s ease;}
+  .view.active{display:block;}
+  @keyframes viewIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---------- Inicio ---------- */
+  .hero{
+    position:relative;
+    background:linear-gradient(135deg, var(--azul-oscuro), var(--azul) 60%, var(--verde-oscuro));
+    border-radius:28px;
+    padding:64px 40px;
+    color:white;
+    text-align:center;
+    overflow:hidden;
+    box-shadow:var(--sombra);
+  }
+  .hero::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at 20% 20%, rgba(255,255,255,0.14), transparent 40%),
+               radial-gradient(circle at 85% 80%, rgba(255,255,255,0.10), transparent 45%);
+  }
+  .hero-badge{
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.3);
+    padding:6px 16px; border-radius:999px; font-size:12px; font-weight:600; letter-spacing:1px;
+    margin-bottom:22px; position:relative; z-index:1;
+  }
+  .hero h1{font-size:42px; font-weight:700; position:relative; z-index:1; margin-bottom:14px; letter-spacing:.3px;}
+  .hero p{font-size:16px; opacity:0.92; max-width:520px; margin:0 auto; position:relative; z-index:1;}
+  .hero-actions{display:flex; justify-content:center; gap:14px; margin-top:32px; position:relative; z-index:1; flex-wrap:wrap;}
+  .btn{
+    padding:13px 26px; border-radius:12px; font-weight:600; font-size:14px;
+    transition:transform .2s ease, box-shadow .2s ease, background .2s ease;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-light{background:white; color:var(--azul-oscuro);}
+  .btn-light:hover{transform:translateY(-3px); box-shadow:0 10px 22px rgba(0,0,0,0.18);}
+  .btn-outline{background:transparent; color:white; border:1.5px solid rgba(255,255,255,0.6);}
+  .btn-outline:hover{background:rgba(255,255,255,0.14); transform:translateY(-3px);}
+  .btn-primary{background:linear-gradient(135deg, var(--azul), #2e86f5); color:white;}
+  .btn-primary:hover{transform:translateY(-2px); box-shadow:0 10px 20px rgba(21,101,216,0.35);}
+  .btn-green{background:linear-gradient(135deg, var(--verde), var(--verde-oscuro)); color:white;}
+  .btn-green:hover{transform:translateY(-2px); box-shadow:0 10px 20px rgba(111,168,58,0.35);}
+  .btn-ghost{background:var(--azul-suave); color:var(--azul-oscuro);}
+  .btn-ghost:hover{background:#d7e9ff;}
+  .btn-danger{background:var(--rojo-fondo); color:var(--rojo);}
+  .btn-danger:hover{background:#f8d3d3;}
+  .btn[disabled]{opacity:.5; cursor:not-allowed; transform:none !important;}
+
+  .stats-row{display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-top:-34px; position:relative; z-index:2;}
+  .stat-card{
+    background:white; border-radius:18px; padding:20px; box-shadow:var(--sombra);
+    border:1px solid var(--borde);
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .stat-card:hover{transform:translateY(-4px); box-shadow:var(--sombra-hover);}
+  .stat-card .n{font-family:'Fredoka',sans-serif; font-size:30px; font-weight:700; color:var(--azul-oscuro);}
+  .stat-card .l{font-size:12.5px; color:var(--texto-suave); font-weight:600; margin-top:4px;}
+  .stat-card.warn .n{color:var(--ambar);}
+  .stat-card.bad .n{color:var(--rojo);}
+  .stat-card.good .n{color:var(--verde-oscuro);}
+
+  .home-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:20px; margin-top:36px;}
+  .panel{background:white; border-radius:20px; padding:26px; box-shadow:var(--sombra); border:1px solid var(--borde);}
+  .panel h3{color:var(--azul-oscuro); font-size:19px; margin-bottom:6px;}
+  .panel .sub{color:var(--texto-suave); font-size:13px; margin-bottom:18px;}
+  .contact-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px dashed var(--borde);}
+  .contact-row:first-of-type{border-top:none;}
+  .contact-row .ic{width:34px; height:34px; border-radius:9px; background:var(--verde-claro); color:var(--verde-oscuro); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .contact-row .ic svg{width:16px; height:16px;}
+  .contact-row .txt strong{display:block; font-size:13.5px; color:var(--texto);}
+  .contact-row .txt span{font-size:12px; color:var(--texto-suave);}
+
+  .mini-list-item{display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px dashed var(--borde);}
+  .mini-list-item:first-of-type{border-top:none;}
+  .mini-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .mini-list-item .nm{font-size:13.5px; font-weight:600; flex:1;}
+  .mini-list-item .badge-sm{font-size:10.5px; padding:3px 9px; border-radius:999px; font-weight:700;}
+
+  .vence-banner{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:linear-gradient(120deg, #B32424, var(--rojo));
+    color:white; border-radius:18px; padding:16px 22px; margin-bottom:18px;
+    box-shadow:var(--sombra); animation:cardIn .4s ease;
+  }
+  .vence-banner .vb-icon{width:42px; height:42px; border-radius:11px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .vence-banner .vb-icon svg{width:22px; height:22px; animation:badgePulse 1.6s infinite;}
+  .vence-banner .vb-text{flex:1; min-width:200px;}
+  .vence-banner .vb-text b{font-size:15px;}
+  .vence-banner .vb-text span{display:block; font-size:12.5px; opacity:.9; margin-top:2px;}
+
+  .venc-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px dashed var(--borde);}
+  .venc-row:first-of-type{border-top:none;}
+  .venc-row .vc-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .venc-row .vc-info{flex:1; min-width:0;}
+  .venc-row .vc-info .vc-nm{font-size:13.5px; font-weight:600;}
+  .venc-row .vc-info .vc-meta{font-size:11.5px; color:var(--texto-suave); margin-top:1px;}
+  .venc-row .vc-days{font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px; white-space:nowrap;}
+  .venc-row .vc-days.critico{background:var(--rojo-fondo); color:var(--rojo);}
+  .venc-row .vc-days.medio{background:var(--ambar-fondo); color:#a86a10;}
+  .venc-row .vc-days.leve{background:var(--verde-claro); color:var(--verde-oscuro);}
+
+  /* ---------- Inventario ---------- */
+  .inv-header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:22px;}
+  .inv-header h1{font-size:26px; color:var(--azul-oscuro);}
+  .inv-header p{color:var(--texto-suave); font-size:13.5px; margin-top:4px;}
+
+  .toolbar{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+    background:white; padding:14px; border-radius:16px; box-shadow:var(--sombra); border:1px solid var(--borde);
+    margin-bottom:22px;
+  }
+  .search-box{flex:1; min-width:200px; position:relative;}
+  .search-box svg{position:absolute; left:14px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--texto-suave);}
+  .search-box input{
+    width:100%; padding:11px 14px 11px 40px; border-radius:10px; border:1.5px solid var(--borde);
+    font-size:13.5px; font-family:inherit; transition:border .2s ease, box-shadow .2s ease; background:var(--fondo);
+  }
+  .search-box input:focus{outline:none; border-color:var(--azul); box-shadow:0 0 0 4px var(--azul-suave); background:white;}
+  select.filter{
+    padding:11px 14px; border-radius:10px; border:1.5px solid var(--borde); font-size:13.5px;
+    font-family:inherit; background:var(--fondo); color:var(--texto);
+  }
+  select.filter:focus{outline:none; border-color:var(--azul);}
+
+  .scan-bar{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:linear-gradient(120deg, var(--azul-oscuro), var(--azul));
+    border-radius:16px; padding:16px 20px; margin-bottom:16px;
+    box-shadow:var(--sombra); position:relative; overflow:hidden;
+  }
+  .scan-bar::before{
+    content:''; position:absolute; top:0; left:-30%; width:30%; height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    animation:scanSheen 3.2s ease-in-out infinite;
+  }
+  @keyframes scanSheen{0%{left:-30%;}100%{left:120%;}}
+  .scan-icon-wrap{
+    width:46px; height:46px; border-radius:12px; background:rgba(255,255,255,0.14);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:1;
+    transition:transform .2s ease;
+  }
+  .scan-icon-wrap svg{width:24px; height:24px; color:white;}
+  .scan-icon-wrap.listening{animation:scanPulse 1.4s ease-in-out infinite;}
+  @keyframes scanPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.35);}50%{box-shadow:0 0 0 9px rgba(255,255,255,0);}}
+  .scan-mid{flex:1; min-width:220px; position:relative; z-index:1;}
+  .scan-mid label{display:block; color:rgba(255,255,255,0.85); font-size:11.5px; font-weight:700; letter-spacing:.4px; margin-bottom:6px; text-transform:uppercase;}
+  .scan-mid input{
+    width:100%; padding:11px 14px; border-radius:10px; border:none;
+    font-family:'Space Mono',monospace; font-size:14px; background:rgba(255,255,255,0.95); color:var(--texto);
+  }
+  .scan-mid input:focus{outline:3px solid rgba(255,255,255,0.5);}
+  .scan-status{display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; font-size:11.5px; color:rgba(255,255,255,0.8); margin-top:6px; font-weight:600;}
+  .scan-status .dot{width:7px; height:7px; border-radius:50%; background:#7CFFB2; flex-shrink:0;}
+  .scan-status .dot.off{background:rgba(255,255,255,0.4); animation:none;}
+  .scan-status .dot:not(.off){animation:pulseDot 1.6s infinite;}
+  .scanner-badge{
+    margin-left:auto; background:rgba(255,255,255,0.14); padding:3px 10px; border-radius:999px;
+    font-size:10.5px; font-weight:700; transition:background .3s ease, color .3s ease; white-space:nowrap;
+  }
+  .scanner-badge.detected{background:#7CFFB2; color:#0D3B66;}
+
+  .batch-toggle{
+    position:relative; z-index:1; display:flex; align-items:center; gap:8px;
+    padding:12px 16px; border-radius:11px; background:rgba(255,255,255,0.14); color:white;
+    font-size:12.5px; font-weight:700; flex-shrink:0; transition:background .2s ease, transform .2s ease;
+    border:1.5px solid rgba(255,255,255,0.3);
+  }
+  .batch-toggle svg{width:16px; height:16px;}
+  .batch-toggle:hover{background:rgba(255,255,255,0.22); transform:translateY(-1px);}
+  .batch-toggle.on{background:var(--verde); border-color:var(--verde);}
+
+  .batch-panel{
+    background:var(--verde-claro); border:1.5px solid #cfe9b6; border-radius:16px;
+    padding:18px 20px; margin-bottom:18px; animation:cardIn .35s ease;
+  }
+  .batch-panel-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:12px;}
+  .batch-panel-head h4{color:var(--verde-oscuro); font-size:15.5px; margin-bottom:3px;}
+  .batch-panel-head p{font-size:12.5px; color:#41633a; max-width:460px;}
+  .batch-count{background:white; color:var(--verde-oscuro); font-weight:700; font-size:12px; padding:6px 13px; border-radius:999px; flex-shrink:0; white-space:nowrap;}
+  .batch-list{display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto; margin-bottom:14px;}
+  .batch-row{
+    background:white; border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px;
+    border:1.5px solid #dcefc9; animation:cardIn .3s ease;
+  }
+  .batch-row.is-new{border-color:var(--ambar);}
+  .batch-row .br-icon{width:32px; height:32px; border-radius:8px; background:var(--verde-claro); color:var(--verde-oscuro); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .batch-row.is-new .br-icon{background:var(--ambar-fondo); color:#a86a10;}
+  .batch-row .br-icon svg{width:16px; height:16px;}
+  .batch-row .br-info{flex:1; min-width:0;}
+  .batch-row .br-code{font-family:'Space Mono',monospace; font-size:10.5px; color:var(--texto-suave);}
+  .batch-row .br-name{font-size:13.5px; font-weight:600; margin-top:1px;}
+  .batch-row .br-newfields{display:flex; gap:8px; margin-top:6px;}
+  .batch-row .br-newfields input, .batch-row .br-newfields select{
+    padding:7px 9px; font-size:12px; border-radius:7px; border:1.5px solid var(--borde); font-family:inherit; background:var(--fondo);
+  }
+  .batch-row .br-newfields input{flex:1; min-width:0;}
+  .br-qty{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .br-qty button{width:26px; height:26px; border-radius:7px; background:var(--azul-suave); color:var(--azul); font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center;}
+  .br-qty button:hover{background:#d7e9ff;}
+  .br-qty span{font-family:'Space Mono',monospace; font-weight:700; min-width:22px; text-align:center; font-size:13.5px;}
+  .br-remove{width:28px; height:28px; border-radius:8px; background:var(--rojo-fondo); color:var(--rojo); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .br-remove:hover{background:#f8d3d3;}
+  .br-remove svg{width:13px; height:13px;}
+  .batch-panel-foot{display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;}
+  .batch-panel-foot .field input{background:white;}
+
+  .grid-productos{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px;}
+  .card{
+    background:white; border-radius:18px; padding:20px; border:1px solid var(--borde);
+    box-shadow:var(--sombra); position:relative; overflow:hidden;
+    animation:cardIn .45s ease both;
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  @keyframes cardIn{from{opacity:0; transform:translateY(16px) scale(.98);} to{opacity:1; transform:translateY(0) scale(1);}}
+  .card:hover{transform:translateY(-5px); box-shadow:var(--sombra-hover);}
+  .card::before{content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--cat-color, var(--azul));}
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .card-cat{font-size:10.5px; font-weight:700; letter-spacing:.5px; padding:4px 10px; border-radius:999px; color:var(--cat-color, var(--azul)); background:var(--cat-bg, var(--azul-suave));}
+  .card h4{font-size:16.5px; margin-top:10px; color:var(--texto); line-height:1.25;}
+  .card .codigo{font-family:'Space Mono',monospace; font-size:11px; color:var(--texto-suave); margin-top:2px;}
+  .card .meta{font-size:12.5px; color:var(--texto-suave); margin-top:8px;}
+  .card .estado-badge{
+    display:inline-flex; align-items:center; gap:6px; margin-top:12px;
+    font-size:11px; font-weight:700; padding:5px 11px; border-radius:999px;
+  }
+  .estado-disponible{background:var(--verde-claro); color:var(--verde-oscuro);}
+  .estado-por_vencer{background:var(--ambar-fondo); color:#a86a10;}
+  .estado-agotado{background:var(--rojo-fondo); color:var(--rojo);}
+  .estado-badge .dot{width:6px; height:6px; border-radius:50%; background:currentColor;}
+  .estado-badge.pulse{animation:badgePulse 1.6s infinite;}
+  @keyframes badgePulse{0%,100%{box-shadow:0 0 0 0 rgba(214,69,69,0.35);}50%{box-shadow:0 0 0 6px rgba(214,69,69,0);}}
+
+  .card-bottom{display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px dashed var(--borde);}
+  .stock-num{font-family:'Space Mono',monospace; font-size:13px;}
+  .stock-num b{font-size:16px;}
+  .card-actions{display:flex; gap:6px;}
+  .card-actions button{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; transition:background .2s, transform .2s;}
+  .card-actions button svg{width:14px; height:14px;}
+  .act-edit{background:var(--azul-suave); color:var(--azul);}
+  .act-edit:hover{background:#d7e9ff; transform:scale(1.08);}
+  .act-del{background:var(--rojo-fondo); color:var(--rojo);}
+  .act-del:hover{background:#f8d3d3; transform:scale(1.08);}
+  .act-view{background:var(--verde-claro); color:var(--verde-oscuro);}
+  .act-view:hover{background:#dcefc9; transform:scale(1.08);}
+
+  .empty-state{text-align:center; padding:70px 20px; color:var(--texto-suave);}
+  .empty-state svg{width:64px; height:64px; margin-bottom:16px; opacity:.5;}
+  .empty-state h3{color:var(--texto); margin-bottom:6px;}
+
+  /* ---------- Ventas / POS ---------- */
+  .pos-grid{display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start;}
+  .pos-cart-panel{background:white; border-radius:20px; padding:22px; box-shadow:var(--sombra); border:1px solid var(--borde);}
+  .pos-cart-list{display:flex; flex-direction:column; gap:8px; max-height:420px; overflow-y:auto; margin:16px 0;}
+  .pos-empty{text-align:center; padding:40px 10px; color:var(--texto-suave); font-size:13.5px;}
+  .pos-row{
+    display:flex; align-items:center; gap:10px; background:var(--fondo); border:1.5px solid var(--borde);
+    border-radius:12px; padding:10px 12px; animation:cardIn .3s ease;
+  }
+  .pos-row .pr-info{flex:1; min-width:0;}
+  .pos-row .pr-name{font-size:13.5px; font-weight:600;}
+  .pos-row .pr-sub{font-size:11.5px; color:var(--texto-suave); margin-top:2px;}
+  .pos-row select.pr-mode{padding:6px 8px; font-size:11.5px; border-radius:7px; border:1.5px solid var(--borde); background:white; font-family:inherit;}
+  .pos-row .pr-qty{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .pos-row .pr-qty button{width:24px; height:24px; border-radius:7px; background:var(--azul-suave); color:var(--azul); font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .pos-row .pr-qty input{
+    width:52px; font-family:'Space Mono',monospace; font-weight:700; text-align:center; font-size:13px;
+    border:1.5px solid var(--borde); border-radius:7px; padding:3px 2px; font-family:inherit;
+  }
+  .pos-row .pr-qty input:focus{outline:none; border-color:var(--azul);}
+  .pos-row .pr-price{font-family:'Space Mono',monospace; font-size:13px; font-weight:700; min-width:78px; text-align:right; color:var(--azul-oscuro);}
+  .pos-row .pr-remove{width:26px; height:26px; border-radius:8px; background:var(--rojo-fondo); color:var(--rojo); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .pos-row .pr-remove svg{width:12px; height:12px;}
+  .pos-summary{border-top:1.5px dashed var(--borde); padding-top:14px; margin-top:6px;}
+  .pos-summary-row{display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--texto-suave);}
+  .pos-summary-row.total{font-size:19px; font-weight:700; color:var(--azul-oscuro); font-family:'Fredoka',sans-serif; padding-top:8px;}
+  .pos-side-panel{background:white; border-radius:20px; padding:22px; box-shadow:var(--sombra); border:1px solid var(--borde);}
+  .pos-side-panel + .pos-side-panel{margin-top:20px;}
+  .fiado-toggle{display:flex; align-items:center; gap:10px; background:var(--ambar-fondo); border-radius:12px; padding:12px 14px; margin-top:8px;}
+  .fiado-toggle input[type="checkbox"]{width:18px; height:18px; accent-color:var(--ambar);}
+  .fiado-toggle label{font-size:13px; font-weight:600; color:#a86a10;}
+  .ventas-list{display:flex; flex-direction:column; gap:10px;}
+  .venta-row{
+    background:white; border:1px solid var(--borde); border-radius:14px; padding:14px 16px;
+    display:flex; align-items:center; gap:14px; box-shadow:var(--sombra); flex-wrap:wrap;
+  }
+  .venta-row .vr-info{flex:1; min-width:180px;}
+  .venta-row .vr-cliente{font-size:14px; font-weight:700; color:var(--texto);}
+  .venta-row .vr-meta{font-size:12px; color:var(--texto-suave); margin-top:2px;}
+  .venta-row .vr-total{font-family:'Space Mono',monospace; font-weight:700; font-size:15px; color:var(--azul-oscuro);}
+  .venta-row .vr-estado{font-size:11px; font-weight:700; padding:5px 11px; border-radius:999px;}
+  .venta-row .vr-estado.pagado{background:var(--verde-claro); color:var(--verde-oscuro);}
+  .venta-row .vr-estado.debe{background:var(--rojo-fondo); color:var(--rojo);}
+  .venta-row .vr-actions{display:flex; gap:6px;}
+  .cierre-mini{background:rgba(255,255,255,0.14); border-radius:12px; padding:12px 14px;}
+  .cierre-mini .cm-n{font-family:'Fredoka',sans-serif; font-size:20px; font-weight:700; color:white;}
+  .cierre-mini .cm-l{font-size:11px; color:rgba(255,255,255,0.8); font-weight:600; margin-top:2px;}
+  .cierre-final{background:rgba(255,255,255,0.95) !important;}
+  .cierre-final .cm-n{color:var(--azul-oscuro) !important;}
+  .cierre-final .cm-l{color:var(--texto-suave) !important;}
+  .deuda-row{display:flex; justify-content:space-between; padding:8px 0; border-top:1px dashed var(--borde); font-size:13px;}
+  .deuda-row:first-of-type{border-top:none;}
+
+  /* Recibo — oculto en pantalla, solo visible al imprimir */
+  #reciboPrint{display:none;}
+  @media print{
+    @page{ size:58mm auto; margin:0; }
+    body *{visibility:hidden;}
+    #reciboPrint, #reciboPrint *{visibility:visible;}
+    #reciboPrint{
+      display:block; position:fixed; top:0; left:0; width:58mm; padding:2mm 2.5mm;
+      font-family:'Space Mono',monospace; font-size:9.5px; color:#000; line-height:1.35;
+    }
+    #reciboPrint h2{font-size:13px; text-align:center; margin-bottom:2px;}
+    #reciboPrint .rc-center{text-align:center; font-size:9px; margin-bottom:2px;}
+    #reciboPrint hr{border:none; border-top:1px dashed #000; margin:4px 0;}
+    #reciboPrint table{width:100%; border-collapse:collapse; font-size:9px;}
+    #reciboPrint td{padding:1.5px 0; word-break:break-word;}
+    #reciboPrint .rc-tot{font-weight:700; font-size:11.5px;}
+  }
+
+  /* ---------- Modales ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(13,30,50,0.55); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:200; padding:20px;
+  }
+  .overlay.show{display:flex; animation:overlayIn .2s ease;}
+  @keyframes overlayIn{from{opacity:0;} to{opacity:1;}}
+  .modal{
+    background:white; border-radius:22px; width:100%; box-shadow:0 30px 60px rgba(0,0,0,0.3);
+    animation:modalIn .35s cubic-bezier(.2,.9,.3,1.3); max-height:88vh; display:flex; flex-direction:column;
+  }
+  @keyframes modalIn{from{opacity:0; transform:translateY(30px) scale(.95);} to{opacity:1; transform:translateY(0) scale(1);}}
+  .modal-sm{max-width:380px;}
+  .modal-md{max-width:520px;}
+  .modal-lg{max-width:760px;}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; padding:22px 26px; border-bottom:1px solid var(--borde);}
+  .modal-head h3{font-size:19px; color:var(--azul-oscuro); display:flex; align-items:center; gap:10px;}
+  .modal-body{padding:24px 26px; overflow-y:auto;}
+  .modal-foot{padding:18px 26px; border-top:1px solid var(--borde); display:flex; justify-content:flex-end; gap:10px;}
+  .close-x{width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--fondo); color:var(--texto-suave); transition:background .2s, transform .2s;}
+  .close-x:hover{background:var(--rojo-fondo); color:var(--rojo); transform:rotate(90deg);}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--texto-suave); margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:10px 13px; border-radius:10px; border:1.5px solid var(--borde);
+    font-family:inherit; font-size:13.5px; background:var(--fondo); transition:border .2s, box-shadow .2s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--azul); box-shadow:0 0 0 4px var(--azul-suave); background:white;}
+  .field textarea{resize:vertical; min-height:64px;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 14px;}
+  .form-grid .full{grid-column:1/-1;}
+  .form-section-title{grid-column:1/-1; font-size:11.5px; font-weight:700; letter-spacing:.6px; color:var(--verde-oscuro); margin:10px 0 4px; text-transform:uppercase;}
+  .form-section-title:first-child{margin-top:0;}
+
+  .pw-shake{animation:shake .4s ease;}
+  @keyframes shake{10%,90%{transform:translateX(-2px);}20%,80%{transform:translateX(4px);}30%,50%,70%{transform:translateX(-8px);}40%,60%{transform:translateX(8px);}}
+
+  .detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 20px;}
+  .detail-item{padding:10px 0; border-bottom:1px dashed var(--borde);}
+  .detail-item span{display:block; font-size:11px; color:var(--texto-suave); font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+  .detail-item b{font-size:14px; color:var(--texto);}
+
+  /* ---------- Toasts ---------- */
+  .toast-wrap{position:fixed; top:20px; right:20px; z-index:400; display:flex; flex-direction:column; gap:10px;}
+  .toast{
+    background:white; border-radius:12px; padding:14px 18px; box-shadow:0 12px 30px rgba(0,0,0,0.18);
+    display:flex; align-items:center; gap:10px; min-width:240px; font-size:13.5px; font-weight:600;
+    animation:toastIn .35s ease, toastOut .3s ease 2.7s forwards; border-left:4px solid var(--azul);
+  }
+  .toast.ok{border-color:var(--verde);}
+  .toast.err{border-color:var(--rojo);}
+  .toast svg{width:18px; height:18px; flex-shrink:0;}
+  .toast.ok svg{color:var(--verde-oscuro);}
+  .toast.err svg{color:var(--rojo);}
+  .toast.info svg{color:var(--azul);}
+  @keyframes toastIn{from{opacity:0; transform:translateX(40px);} to{opacity:1; transform:translateX(0);}}
+  @keyframes toastOut{to{opacity:0; transform:translateX(40px);}}
+
+  footer{text-align:center; padding:26px; color:var(--texto-suave); font-size:12px; position:relative; z-index:1;}
+
+  @media(max-width:860px){
+    .home-grid{grid-template-columns:1fr;}
+    .stats-row{grid-template-columns:1fr 1fr 1fr;}
+    .form-grid{grid-template-columns:1fr;}
+    .detail-grid{grid-template-columns:1fr;}
+    .hero h1{font-size:30px;}
+    .pos-grid{grid-template-columns:1fr;}
+    .scan-bar{flex-direction:column; align-items:stretch;}
+    .batch-toggle{margin-left:0; justify-content:center;}
+    .scanner-badge{margin-left:0;}
+  }
+  @media(max-width:560px){
+    header{padding:10px 14px; flex-wrap:wrap;}
+    .logo-text{display:none;}
+    nav{margin-left:0; overflow-x:auto;}
+    .tab{padding:9px 12px; font-size:13px; white-space:nowrap;}
+    .stats-row{grid-template-columns:1fr 1fr;}
+    main{padding:20px 12px 60px;}
+    .hero{padding:44px 20px;}
+    .hero h1{font-size:24px;}
+    .hero p{font-size:14px;}
+    .modal{max-height:94vh; border-radius:18px;}
+    .modal-lg, .modal-md{max-width:100%;}
+    .modal-body{padding:18px 16px;}
+    .modal-head{padding:16px 18px;}
+    .venta-row{flex-direction:column; align-items:stretch; gap:8px;}
+    .venta-row .vr-total{order:2;}
+    .venta-row .vr-estado{order:1; align-self:flex-start;}
+    .venta-row .vr-actions{order:3; justify-content:flex-end;}
+    .pos-row{flex-wrap:wrap;}
+    .pos-row .pr-info{flex-basis:100%;}
+    .card-actions button{width:34px; height:34px;}
+    .batch-panel-foot{flex-direction:column; align-items:stretch;}
+    .batch-panel-foot .btn{width:100%;}
+    .cierre-mini{padding:10px 12px;}
+    .cierre-mini .cm-n{font-size:16px;}
+  }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+    outline:2.5px solid var(--azul); outline-offset:2px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001s !important; transition-duration:0.001s !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-floaters" aria-hidden="true">
+  <div class="floater f1"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="9" width="20" height="6" rx="3" fill="#1565D8"/><rect x="9" y="2" width="6" height="20" rx="3" fill="#1565D8"/></svg></div>
+  <div class="floater f2"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="12" rx="10" ry="6" fill="#6FA83A" transform="rotate(35 12 12)"/></svg></div>
+  <div class="floater f3"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z" fill="#6FA83A"/></svg></div>
+  <div class="floater f4"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="9" width="20" height="6" rx="3" fill="#2E86F5"/><rect x="9" y="2" width="6" height="20" rx="3" fill="#2E86F5"/></svg></div>
+  <div class="floater f5"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#F2A93B"/></svg></div>
+  <div class="floater f6"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="12" rx="10" ry="6" fill="#1565D8" transform="rotate(-20 12 12)"/></svg></div>
+</div>
+
+<header>
+  <button class="logo-btn" id="logoBtn" title="Acceder como administrador">
+    <div class="logo-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2" y="9" width="20" height="6" rx="2" fill="white"/><rect x="9" y="2" width="6" height="20" rx="2" fill="white"/></svg>
+    </div>
+    <div class="logo-text">
+      <div class="l1">Bio<span>Farma</span></div>
+      <div class="l2">PITALITO</div>
+    </div>
+  </button>
+
+  <nav>
+    <button class="tab active" data-view="inicio">Inicio</button>
+    <button class="tab" data-view="inventario">Inventario</button>
+    <button class="tab" data-view="ventas">Ventas</button>
+  </nav>
+
+  <div class="header-right">
+    <button class="icon-btn" id="muteBtn" title="Silenciar sonidos">
+      <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+    </button>
+    <div class="admin-pill" id="adminPill" style="display:none;">
+      <span class="dot"></span> Administrador
+    </div>
+    <div class="cajero-pill" id="cajeroPill" style="display:none;">
+      <span class="dot"></span> Vendedor
+    </div>
+    <button class="icon-btn" id="cajeroLoginBtn" title="Acceder para vender">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+    </button>
+    <button class="icon-btn" id="cajeroLogoutBtn" style="display:none;" title="Salir del modo vendedor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+    <button class="icon-btn" id="settingsBtn" style="display:none;" title="Configuración">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="icon-btn" id="logoutBtn" style="display:none;" title="Cerrar sesión">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= INICIO ================= -->
+  <section class="view active" id="view-inicio">
+    <div id="venceBanner"></div>
+    <div class="hero">
+      <span class="hero-badge">💊 SISTEMA DE INVENTARIO INTERNO</span>
+      <h1 id="heroTitle">Bienvenido a Droguería BioFarma</h1>
+      <p id="heroSubtitle">Gestiona el inventario de medicamentos, controla vencimientos y mantén el stock siempre bajo control, todo en un solo lugar.</p>
+      <div class="hero-actions">
+        <button class="btn btn-light" data-view-go="inventario">Ver inventario</button>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="home-grid">
+      <div class="panel">
+        <h3>Últimos movimientos</h3>
+        <div class="sub">Productos actualizados o agregados recientemente</div>
+        <div id="recentList"></div>
+      </div>
+      <div class="panel">
+        <h3>Contacto y ubicación</h3>
+        <div class="sub">Información del establecimiento</div>
+        <div class="contact-row">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+          <div class="txt"><strong id="cfgPhoneDisp">311 715 7029</strong><span>Línea de atención</span></div>
+        </div>
+        <div class="contact-row">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <div class="txt"><strong id="cfgAddrDisp">Pitalito, Huila</strong><span>Dirección del establecimiento</span></div>
+        </div>
+        <div class="contact-row">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="txt"><strong>Lun - Sáb</strong><span>Horario de atención habitual</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panelVencimientos" style="margin-top:20px;">
+      <h3>⏰ Vencimientos próximos</h3>
+      <div class="sub">Productos vencidos o por vencer, ordenados del más urgente al menos urgente</div>
+      <div id="vencList"></div>
+    </div>
+  </section>
+
+  <!-- ================= INVENTARIO ================= -->
+  <section class="view" id="view-inventario">
+    <div class="inv-header">
+      <div>
+        <h1>Inventario de medicamentos</h1>
+        <p>Consulta, filtra y gestiona todos los productos de la droguería</p>
+      </div>
+      <button class="btn btn-green" id="addProductBtn" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Agregar producto
+      </button>
+    </div>
+
+    <div class="scan-bar">
+      <div class="scan-icon-wrap listening" id="scanIconWrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
+      </div>
+      <div class="scan-mid">
+        <label for="scanInput">Escáner de código de barras</label>
+        <input type="text" id="scanInput" autocomplete="off" placeholder="Conecta la pistola USB y escanea, o escribe el código y presiona Enter…">
+        <div class="scan-status">
+          <span class="dot" id="scanDot"></span><span id="scanStatusText">Lista para escanear — el foco está en este campo</span>
+          <span class="scanner-badge" id="scannerBadge" title="Solo informativo: buscar y agregar productos funciona igual, esté detectado o no.">⚪ Lector no detectado (opcional)</span>
+        </div>
+      </div>
+      <button class="batch-toggle" id="batchToggleBtn" style="display:none;" title="Escanear varios productos seguidos para cargarlos juntos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span id="batchToggleLabel">Modo carga por lote</span>
+      </button>
+    </div>
+
+    <div class="batch-panel" id="batchPanel" style="display:none;">
+      <div class="batch-panel-head">
+        <div>
+          <h4>📦 Carga por lote en curso</h4>
+          <p>Sigue escaneando productos — se irán sumando aquí. Cuando termines, revisa las cantidades y aplica todo al inventario de una vez.</p>
+        </div>
+        <span class="batch-count" id="batchCount">0 productos</span>
+      </div>
+      <div class="batch-list" id="batchList"></div>
+      <div class="batch-panel-foot">
+        <div class="field" style="flex:1; margin-bottom:0;">
+          <label>Responsable de esta carga *</label>
+          <input type="text" id="batchResponsable" placeholder="Nombre de quien está cargando el lote">
+        </div>
+        <button class="btn btn-ghost" id="batchCancelBtn">Cancelar lote</button>
+        <button class="btn btn-green" id="batchApplyBtn">Aplicar al inventario</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar por nombre, código o laboratorio…">
+      </div>
+      <select class="filter" id="filterCategoria">
+        <option value="">Todas las categorías</option>
+        <option value="Medicamentos">Medicamentos</option>
+        <option value="Cuidado personal">Cuidado personal</option>
+        <option value="Vitaminas y suplementos">Vitaminas y suplementos</option>
+        <option value="Higiene">Higiene</option>
+        <option value="Otros">Otros</option>
+      </select>
+      <select class="filter" id="filterEstado">
+        <option value="">Todos los estados</option>
+        <option value="disponible">Disponible</option>
+        <option value="por_vencer">Próximo a vencer</option>
+        <option value="agotado">Agotado</option>
+      </select>
+    </div>
+
+    <div class="grid-productos" id="gridProductos"></div>
+  </section>
+
+  <!-- ================= VENTAS ================= -->
+  <section class="view" id="view-ventas">
+    <div class="inv-header">
+      <div>
+        <h1>Punto de venta</h1>
+        <p>Escanea productos, factura y lleva el registro de ventas y fiados</p>
+      </div>
+    </div>
+
+    <div class="scan-bar">
+      <div class="scan-icon-wrap listening" id="posScanIconWrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
+      </div>
+      <div class="scan-mid">
+        <label for="posScanInput">Escáner de venta</label>
+        <input type="text" id="posScanInput" autocomplete="off" placeholder="Escanea el producto o escribe el código y presiona Enter…">
+        <div class="scan-status"><span class="dot" id="posScanDot"></span><span id="posScanStatusText">Lista para escanear</span></div>
+      </div>
+    </div>
+
+    <div class="pos-grid">
+      <div class="pos-cart-panel">
+        <h3 style="color:var(--azul-oscuro); font-size:18px;">🧾 Factura actual</h3>
+        <div class="pos-cart-list" id="posCartList"></div>
+        <div class="pos-summary" id="posSummary"></div>
+      </div>
+      <div>
+        <div class="pos-side-panel">
+          <h3 style="color:var(--azul-oscuro); font-size:16px;">Datos del cliente</h3>
+          <div class="field" style="margin-top:12px;"><label>Nombre del cliente</label><input type="text" id="posCliente" placeholder="Cliente ocasional"></div>
+          <div class="field"><label>Vendedor / responsable *</label><input type="text" id="posResponsable" placeholder="Nombre de quien vende"></div>
+          <div class="fiado-toggle">
+            <input type="checkbox" id="posFiado">
+            <label for="posFiado">Venta fiada (el cliente queda debiendo)</label>
+          </div>
+          <div class="field" id="posAbonoWrap" style="display:none; margin-top:10px;"><label>Abono inicial (opcional, COP)</label><input type="number" min="0" id="posAbono" value="0"></div>
+          <div style="display:flex; gap:10px; margin-top:16px;">
+            <button class="btn btn-ghost" id="posClearBtn" style="flex:1;">Vaciar</button>
+            <button class="btn btn-green" id="posCobrarBtn" style="flex:1;">Cobrar e imprimir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-side-panel" style="margin-top:28px; background:linear-gradient(120deg, var(--azul-oscuro), var(--azul)); color:white; border:none;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+        <div>
+          <h3 style="color:white; font-size:18px; display:flex; align-items:center; gap:8px;">🔒 Cierre de caja del día</h3>
+          <p style="color:rgba(255,255,255,0.8); font-size:12.5px; margin-top:4px;" id="cierreFechaTexto">Resumen de hoy</p>
+        </div>
+        <button class="btn btn-light" id="abrirCierreBtn">Cerrar caja de hoy</button>
+      </div>
+      <div id="cierreResumenLive" style="margin-top:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px;"></div>
+    </div>
+
+    <div style="margin-top:28px;">
+      <h1 style="font-size:20px; color:var(--azul-oscuro);">Historial de cierres</h1>
+      <p style="color:var(--texto-suave); font-size:13.5px; margin-top:2px; margin-bottom:14px;">Cierres de caja guardados por día</p>
+      <div class="ventas-list" id="cierresList"></div>
+    </div>
+
+    <div style="margin-top:32px;">
+      <div class="inv-header">
+        <div>
+          <h1 style="font-size:20px;">Historial de ventas</h1>
+          <p>Registro de facturas, pagos y cuentas por cobrar</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="ventasSearch" placeholder="Buscar por cliente o vendedor…">
+        </div>
+        <select class="filter" id="ventasFilterEstado">
+          <option value="">Todas las ventas</option>
+          <option value="pagado">Pagadas</option>
+          <option value="debe">Con saldo pendiente (fiado)</option>
+        </select>
+      </div>
+      <div class="ventas-list" id="ventasList"></div>
+    </div>
+  </section>
+</main>
+
+<!-- Plantilla de recibo, invisible en pantalla, se imprime aparte -->
+<div id="reciboPrint"></div>
+
+<footer>
+  Droguería BioFarma Pitalito · Sistema interno de inventario
+</footer>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- Modal LOGIN -->
+<div class="overlay" id="overlayLogin">
+  <div class="modal modal-sm" id="loginModal">
+    <div class="modal-head">
+      <h3>🔐 Acceso administrador</h3>
+      <button class="close-x" data-close="overlayLogin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--texto-suave); margin-bottom:16px;">Ingresa la contraseña de administración para editar el inventario y la página.</p>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+      <p id="loginError" style="display:none; color:var(--rojo); font-size:12.5px; font-weight:600;">Contraseña incorrecta. Intenta de nuevo.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlayLogin">Cancelar</button>
+      <button class="btn btn-primary" id="loginSubmit">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal LOGIN VENDEDOR -->
+<div class="overlay" id="overlayLoginVentas">
+  <div class="modal modal-sm" id="loginVentasModal">
+    <div class="modal-head">
+      <h3>🧾 Acceso vendedor</h3>
+      <button class="close-x" data-close="overlayLoginVentas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--texto-suave); margin-bottom:16px;">Ingresa la contraseña de vendedor para poder facturar. Este acceso solo permite vender — no da acceso a editar el inventario ni la configuración.</p>
+      <div class="field">
+        <label>Contraseña de vendedor</label>
+        <input type="password" id="loginVentasPassword" placeholder="••••••••">
+      </div>
+      <p id="loginVentasError" style="display:none; color:var(--rojo); font-size:12.5px; font-weight:600;">Contraseña incorrecta. Intenta de nuevo.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlayLoginVentas">Cancelar</button>
+      <button class="btn btn-primary" id="loginVentasSubmit">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal CONFIGURACIÓN -->
+<div class="overlay" id="overlaySettings">
+  <div class="modal modal-md">
+    <div class="modal-head">
+      <h3>⚙️ Configuración de la página</h3>
+      <button class="close-x" data-close="overlaySettings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Título de bienvenida</label><input type="text" id="cfgTitle"></div>
+      <div class="field"><label>Subtítulo de bienvenida</label><textarea id="cfgSubtitle"></textarea></div>
+      <div class="field"><label>Teléfono de contacto</label><input type="text" id="cfgPhone"></div>
+      <div class="field"><label>Dirección</label><input type="text" id="cfgAddr"></div>
+      <div class="form-section-title">🔐 Cambiar contraseñas</div>
+      <p style="font-size:12px; color:var(--texto-suave); margin-bottom:10px;">Para cambiar una contraseña debes escribir la contraseña actual y la nueva. Deja ambos campos vacíos si no quieres cambiarla.</p>
+      <div class="field"><label>Contraseña de administrador actual</label><input type="password" id="cfgCurPass" placeholder="Contraseña actual"></div>
+      <div class="field"><label>Nueva contraseña de administrador</label><input type="password" id="cfgNewPass" placeholder="Dejar en blanco para no cambiar"></div>
+      <div class="field"><label>Contraseña de vendedor actual</label><input type="password" id="cfgCurPassVentas" placeholder="Contraseña actual"></div>
+      <div class="field"><label>Nueva contraseña de vendedor</label><input type="password" id="cfgNewPassVentas" placeholder="Dejar en blanco para no cambiar"></div>
+      <div class="form-section-title" style="margin-top:18px;">☁️ Conexión a Supabase (base de datos en la nube)</div>
+      <p style="font-size:12px; color:var(--texto-suave); margin-bottom:12px;">Crea un proyecto gratis en supabase.com, ejecuta el script SQL que te compartí y pega aquí la URL del proyecto y la llave "anon public". Sin esto, los datos solo se guardan en este navegador.</p>
+      <div class="field"><label>URL del proyecto Supabase</label><input type="text" id="cfgSbUrl" placeholder="https://xxxxx.supabase.co"></div>
+      <div class="field"><label>Llave anon public</label><input type="text" id="cfgSbKey" placeholder="eyJhbGciOi..." class="mono"></div>
+      <p id="sbStatusText" style="font-size:12px; font-weight:600; color:var(--texto-suave);"></p>
+
+      <div class="form-section-title" style="margin-top:18px;">🖨️ Impresora Bluetooth (opcional)</div>
+      <p style="font-size:12px; color:var(--texto-suave); margin-bottom:12px;">
+        Conecta la impresora térmica directo por Bluetooth (solo funciona en Chrome — no en Safari/iPhone). Es experimental: si tu impresora no se conecta o imprime cosas raras, deja esto sin conectar y usa la opción de instalarla como impresora normal del sistema (funciona en cualquier navegador, incluido iPhone con la app del fabricante).
+      </p>
+      <p id="btPrinterStatus" style="font-size:12.5px; font-weight:600; color:var(--texto-suave); margin-bottom:10px;"></p>
+      <button type="button" class="btn btn-ghost" id="btConnectBtn">🔵 Conectar impresora Bluetooth</button>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlaySettings">Cancelar</button>
+      <button class="btn btn-primary" id="saveSettingsBtn">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal PRODUCTO (agregar/editar) -->
+<div class="overlay" id="overlayForm">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="formTitle">➕ Agregar producto</h3>
+      <button class="close-x" data-close="overlayForm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="productForm">
+        <div class="form-grid">
+          <div class="form-section-title">💊 Datos principales</div>
+          <div class="field"><label>Código del producto *</label><input required id="f_codigo" type="text"></div>
+          <div class="field"><label>Código de barras</label><input id="f_codigo_barras" type="text" placeholder="Se llena solo al escanear" class="mono"></div>
+          <div class="field"><label>Nombre del medicamento *</label><input required id="f_nombre" type="text"></div>
+          <div class="field"><label>Presentación</label><input id="f_presentacion" type="text" list="dl_presentacion" placeholder="Tabletas, jarabe, crema…">
+            <datalist id="dl_presentacion"><option value="Tabletas"><option value="Cápsulas"><option value="Jarabe"><option value="Crema"><option value="Gotas"><option value="Inyectable"><option value="Polvo"></datalist>
+          </div>
+          <div class="field"><label>Concentración</label><input id="f_concentracion" type="text" placeholder="Ej. 500 mg"></div>
+          <div class="field"><label>Laboratorio o marca</label><input id="f_laboratorio" type="text"></div>
+          <div class="field"><label>Categoría</label>
+            <select id="f_categoria">
+              <option>Medicamentos</option><option>Cuidado personal</option><option>Vitaminas y suplementos</option><option>Higiene</option><option>Otros</option>
+            </select>
+          </div>
+
+          <div class="form-section-title">📦 Inventario</div>
+          <div class="field"><label>Cantidad disponible (unidades) *</label><input required id="f_cantidad_disponible" type="number" min="0" placeholder="Ej. 120 tabletas, 30 frascos…"></div>
+          <div class="field"><label>Cantidad mínima</label><input id="f_cantidad_minima" type="number" min="0"></div>
+          <div class="field"><label>Cantidad máxima</label><input id="f_cantidad_maxima" type="number" min="0"></div>
+          <div class="field"><label>Ubicación</label><input id="f_ubicacion" type="text" placeholder="Estante, vitrina, bodega…"></div>
+          <div class="field"><label>Lote</label><input id="f_lote" type="text"></div>
+          <div class="field"><label>Fecha de vencimiento</label><input id="f_fecha_vencimiento" type="date"></div>
+
+          <div class="form-section-title">💰 Compra y venta</div>
+          <div class="field"><label>Precio de compra (COP)</label><input id="f_precio_compra" type="number" min="0"></div>
+          <div class="field"><label>Precio de venta por unidad (COP)</label><input id="f_precio_venta" type="number" min="0" placeholder="Precio de venta de cada unidad"></div>
+          <div class="field"><label>IVA (%)</label><input id="f_iva" type="number" min="0" step="0.1"></div>
+          <div class="field"><label>Proveedor</label><input id="f_proveedor" type="text"></div>
+
+          <div class="form-section-title">🏛️ Regulatorio (INVIMA)</div>
+          <div class="field"><label>Registro sanitario INVIMA</label><input id="f_invima" type="text" placeholder="Ej. INVIMA 2015M-0012345" class="mono"></div>
+          <div class="field"><label>Tipo de registro</label>
+            <select id="f_invima_tipo">
+              <option value="">Sin especificar</option>
+              <option value="Medicamento">Medicamento (M)</option>
+              <option value="Notificación sanitaria">Notificación sanitaria obligatoria (NSO)</option>
+              <option value="Dispositivo médico">Dispositivo médico</option>
+              <option value="Cosmético">Cosmético (declaración)</option>
+              <option value="No requiere">No requiere registro</option>
+            </select>
+          </div>
+          <div class="field"><label>Vencimiento del registro INVIMA</label><input id="f_invima_vencimiento" type="date"></div>
+          <div class="field"><label>¿Requiere fórmula médica?</label>
+            <select id="f_requiere_formula">
+              <option value="No">No</option>
+              <option value="Sí">Sí</option>
+            </select>
+          </div>
+
+          <div class="form-section-title">📝 Control</div>
+          <div class="field full"><label>Responsable de este registro *</label><input required id="f_responsable" type="text" placeholder="Nombre de quien ingresa o edita"></div>
+          <div class="field full"><label>Observaciones</label><textarea id="f_observaciones"></textarea></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlayForm">Cancelar</button>
+      <button class="btn btn-primary" id="saveProductBtn">Guardar producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal DETALLE -->
+<div class="overlay" id="overlayDetail">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="detailTitle">Detalle del producto</h3>
+      <button class="close-x" data-close="overlayDetail">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="detailGrid"></div>
+      <h4 style="font-size:13.5px; color:var(--azul-oscuro); margin:18px 0 8px;">🕓 Historial de cambios de precio/stock</h4>
+      <div id="detailHistorial" style="background:var(--fondo); border-radius:12px; padding:4px 14px;"></div>
+    </div>
+    <div class="modal-foot" id="detailFoot"></div>
+  </div>
+</div>
+
+<!-- Modal CONFIRMAR ELIMINAR -->
+<div class="overlay" id="overlayDelete">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h3>🗑️ Eliminar producto</h3>
+      <button class="close-x" data-close="overlayDelete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13.5px;">¿Seguro que quieres eliminar <b id="deleteProdName"></b> del inventario? Esta acción no se puede deshacer.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlayDelete">Cancelar</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal CIERRE DE CAJA -->
+<div class="overlay" id="overlayCierre">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="cierreModalTitle">🔒 Cierre de caja</h3>
+      <button class="close-x" data-close="overlayCierre">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="cierreModalBody"></div>
+    <div class="modal-foot" id="cierreModalFoot"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ SONIDOS (Web Audio API, sin archivos externos) ============ */
+  let audioCtx = null;
+  let muted = false;
+  function ctx(){ if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } return audioCtx; }
+  function tone(freq, start, dur, type, gainVal){
+    if(muted) return;
+    try{
+      const c = ctx();
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, c.currentTime + start);
+      gain.gain.setValueAtTime(0, c.currentTime + start);
+      gain.gain.linearRampToValueAtTime(gainVal||0.08, c.currentTime + start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + start + dur);
+      osc.connect(gain); gain.connect(c.destination);
+      osc.start(c.currentTime + start);
+      osc.stop(c.currentTime + start + dur + 0.02);
+    }catch(e){}
+  }
+  const sfx = {
+    click: () => tone(720, 0, 0.06, 'sine', 0.06),
+    tab: () => { tone(500,0,0.05,'sine',0.05); tone(760,0.04,0.06,'sine',0.05); },
+    open: () => { tone(400,0,0.06,'sine',0.05); tone(700,0.05,0.08,'sine',0.05); },
+    success: () => { tone(620,0,0.08,'sine',0.07); tone(880,0.09,0.14,'sine',0.08); },
+    error: () => { tone(300,0,0.12,'square',0.05); tone(180,0.1,0.18,'square',0.05); },
+    delete: () => { tone(340,0,0.05,'square',0.05); tone(160,0.05,0.12,'square',0.05); },
+    toggle: () => tone(900,0,0.04,'triangle',0.05),
+    scanOk: () => tone(1600,0,0.09,'square',0.07),
+    scanNew: () => { tone(750,0,0.07,'sine',0.06); tone(950,0.09,0.09,'sine',0.06); },
+    scanFail: () => { tone(320,0,0.1,'square',0.06); tone(220,0.1,0.14,'square',0.06); },
+  };
+
+  /* ============ ESTADO ============ */
+  const STORAGE_KEY = 'biofarma_data';
+  const SB_LOCAL_KEY = 'biofarma_sb_config';
+  let STATE = {
+    productos: [],
+    ventas: [],
+    cierres: [],
+    config: {
+      title: 'Bienvenido a Droguería BioFarma',
+      subtitle: 'Gestiona el inventario de medicamentos, controla vencimientos y mantén el stock siempre bajo control, todo en un solo lugar.',
+      phone: '311 715 7029',
+      address: 'Pitalito, Huila',
+      password: 'biofarma2025',
+      passwordVentas: 'ventas2025',
+      supabaseUrl: '',
+      supabaseKey: ''
+    }
+  };
+  let isAdmin = false;
+  let isCajero = false;
+  let editingId = null;
+  let deletingId = null;
+  let supa = null; // cliente de Supabase, null si no está configurado/conectado
+
+  const CAT_COLORS = {
+    'Medicamentos': {c:'#1565D8', bg:'#E7F1FF'},
+    'Cuidado personal': {c:'#0E9384', bg:'#E1F7F3'},
+    'Vitaminas y suplementos': {c:'#6FA83A', bg:'#EAF6DF'},
+    'Higiene': {c:'#8956D6', bg:'#F0E7FB'},
+    'Otros': {c:'#5B7A94', bg:'#EAF1F6'}
+  };
+  const ESTADO_LABEL = {disponible:'Disponible', por_vencer:'Próximo a vencer', agotado:'Agotado'};
+
+  function uid(){ return 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function fmtCOP(n){ if(n===undefined||n===null||n==='') return '—'; return '$' + Number(n).toLocaleString('es-CO'); }
+  function fmtDate(d){ if(!d) return '—'; const dt = new Date(d+'T00:00:00'); if(isNaN(dt)) return d; return dt.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}); }
+
+  function calcularEstado(p){
+    const cant = Number(p.cantidad_disponible)||0;
+    if(cant <= 0) return 'agotado';
+    if(p.fecha_vencimiento){
+      const dias = (new Date(p.fecha_vencimiento+'T00:00:00') - new Date()) / (1000*60*60*24);
+      if(dias <= 60) return 'por_vencer';
+    }
+    return 'disponible';
+  }
+
+  /* ============ PERSISTENCIA ============ */
+  // Dos niveles:
+  // 1) Supabase (si hay URL + llave configuradas): fuente de verdad compartida
+  //    entre todos los computadores de la droguería, en tiempo casi real.
+  // 2) Respaldo local (window.storage del artefacto, o localStorage, o memoria):
+  //    siempre se guarda una copia aquí también, para que la página nunca se
+  //    quede sin datos si por algún motivo no hay internet o Supabase falla.
+  let usingFallback = false;
+  let fallbackWarned = false;
+  const memoryStore = {};
+
+  function hasRealStorage(){
+    return !!(window.storage && typeof window.storage.get === 'function' && typeof window.storage.set === 'function');
+  }
+  function hasLocalStorage(){
+    try{ const k='__t'; localStorage.setItem(k,'1'); localStorage.removeItem(k); return true; }catch(e){ return false; }
+  }
+  async function storageGet(key, shared){
+    if(hasRealStorage()) return await window.storage.get(key, shared);
+    if(hasLocalStorage()){
+      const v = localStorage.getItem(key);
+      if(v !== null) return {key, value:v, shared};
+      throw new Error('not_found');
+    }
+    usingFallback = true;
+    if(memoryStore[key] !== undefined) return {key, value: memoryStore[key], shared};
+    throw new Error('not_found');
+  }
+  async function storageSet(key, value, shared){
+    if(hasRealStorage()){
+      try{ const res = await window.storage.set(key, value, shared); if(res) return res; throw new Error('empty_response'); }
+      catch(e){ /* cae a los siguientes niveles */ }
+    }
+    if(hasLocalStorage()){
+      try{ localStorage.setItem(key, value); return {key, value, shared}; }catch(e){ /* sigue a memoria */ }
+    }
+    usingFallback = true;
+    memoryStore[key] = value;
+    return {key, value, shared};
+  }
+
+  function readSbLocalConfig(){
+    try{
+      if(hasLocalStorage()){
+        const raw = localStorage.getItem(SB_LOCAL_KEY);
+        if(raw) return JSON.parse(raw);
+      }
+    }catch(e){}
+    return null;
+  }
+  function writeSbLocalConfig(url, key){
+    try{ if(hasLocalStorage()) localStorage.setItem(SB_LOCAL_KEY, JSON.stringify({url, key})); }catch(e){}
+  }
+
+  function initSupabaseClient(url, key){
+    if(!url || !key || !window.supabase || typeof window.supabase.createClient !== 'function'){ supa = null; return false; }
+    try{ supa = window.supabase.createClient(url, key); return true; }
+    catch(e){ supa = null; return false; }
+  }
+
+  function sanitizeProducto(p){
+    const out = Object.assign({}, p);
+    ['fecha_vencimiento','fecha_ingreso','ultima_actualizacion'].forEach(f=>{ if(out[f]==='') out[f]=null; });
+    ['cantidad_minima','cantidad_maxima'].forEach(f=>{ if(out[f]===''||out[f]===undefined) out[f]=null; });
+    return out;
+  }
+  function sanitizeVenta(v){ return Object.assign({}, v); }
+
+  async function loadData(){
+    const sb = readSbLocalConfig();
+    if(sb && sb.url && sb.key){
+      STATE.config.supabaseUrl = sb.url; STATE.config.supabaseKey = sb.key;
+      initSupabaseClient(sb.url, sb.key);
+    }
+    if(supa){
+      try{ await loadFromSupabase(); renderAll(); setupRealtimeSync(); return; }
+      catch(e){ supa = null; toast('err','No se pudo conectar a Supabase. Usando el respaldo local mientras tanto.'); }
+    }
+    try{
+      const res = await storageGet(STORAGE_KEY, true);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        STATE.productos = (parsed.productos && parsed.productos.length) ? parsed.productos : seedProducts();
+        STATE.ventas = parsed.ventas || [];
+        STATE.cierres = parsed.cierres || [];
+        STATE.config = Object.assign({}, STATE.config, parsed.config || {}, {supabaseUrl: STATE.config.supabaseUrl, supabaseKey: STATE.config.supabaseKey});
+      } else {
+        STATE.productos = seedProducts();
+        await persistLocalBlob();
+      }
+    }catch(e){
+      STATE.productos = seedProducts();
+      await persistLocalBlob();
+    }
+    renderAll();
+    if(usingFallback && !fallbackWarned){
+      fallbackWarned = true;
+      toast('info', 'Modo local: los cambios se guardan solo en este navegador (Supabase no está configurado).');
+    }
+  }
+
+  // ---- Sincronización en tiempo real ----
+  // Cuando hay Supabase conectado, cualquier cambio hecho desde OTRO
+  // dispositivo (otra caja, u otra persona con el celular) llega aquí solo
+  // y actualiza la pantalla al instante, sin recargar la página. Así, desde
+  // el celular se puede supervisar en vivo lo que pasa en la tienda.
+  let realtimeChannel = null;
+  function setupRealtimeSync(){
+    if(!supa || !supa.channel) return;
+    if(realtimeChannel){ try{ supa.removeChannel(realtimeChannel); }catch(e){} realtimeChannel = null; }
+    realtimeChannel = supa.channel('biofarma-sync')
+      .on('postgres_changes', {event:'*', schema:'public', table:'productos'}, payload => {
+        applyRealtimeChange(STATE.productos, payload, 'id');
+        renderAll();
+      })
+      .on('postgres_changes', {event:'*', schema:'public', table:'ventas'}, payload => {
+        applyRealtimeChange(STATE.ventas, payload, 'id');
+        renderAll();
+      })
+      .on('postgres_changes', {event:'*', schema:'public', table:'cierres_caja'}, payload => {
+        applyRealtimeChange(STATE.cierres, payload, 'id');
+        renderAll();
+      })
+      .subscribe();
+  }
+  function applyRealtimeChange(arr, payload, key){
+    if(payload.eventType === 'DELETE'){
+      const idx = arr.findIndex(x=>x[key]===payload.old[key]);
+      if(idx>-1) arr.splice(idx,1);
+      return;
+    }
+    const idx = arr.findIndex(x=>x[key]===payload.new[key]);
+    if(idx>-1) arr[idx] = payload.new; else arr.unshift(payload.new);
+  }
+
+  async function loadFromSupabase(){
+    const [prodRes, ventasRes, cfgRes, cierresRes] = await Promise.all([
+      supa.from('productos').select('*'),
+      supa.from('ventas').select('*').order('fecha', {ascending:false}),
+      supa.from('config').select('*').eq('id',1),
+      supa.from('cierres_caja').select('*').order('fecha', {ascending:false})
+    ]);
+    if(prodRes.error) throw prodRes.error;
+    if(ventasRes.error) throw ventasRes.error;
+    if(cfgRes.error) throw cfgRes.error;
+    if(cierresRes.error) throw cierresRes.error;
+
+    STATE.ventas = ventasRes.data || [];
+    STATE.cierres = cierresRes.data || [];
+    if(cfgRes.data && cfgRes.data.length){
+      STATE.config = Object.assign({}, STATE.config, cfgRes.data[0], {supabaseUrl: STATE.config.supabaseUrl, supabaseKey: STATE.config.supabaseKey});
+    } else {
+      const cfgRow = Object.assign({id:1}, STATE.config);
+      delete cfgRow.supabaseUrl; delete cfgRow.supabaseKey; delete cfgRow.password; delete cfgRow.passwordVentas;
+      await supa.from('config').upsert(cfgRow);
+    }
+    if(prodRes.data && prodRes.data.length){
+      STATE.productos = prodRes.data;
+    } else {
+      STATE.productos = seedProducts();
+      await supa.from('productos').upsert(STATE.productos.map(sanitizeProducto));
+    }
+  }
+
+  // Copia de respaldo local (siempre se guarda, haya o no Supabase).
+  async function persistLocalBlob(){
+    await storageSet(STORAGE_KEY, JSON.stringify({productos: STATE.productos, ventas: STATE.ventas, cierres: STATE.cierres, config: STATE.config}), true);
+    if(usingFallback && !fallbackWarned){
+      fallbackWarned = true;
+      toast('info', 'Modo local: los cambios se guardan solo en este navegador (Supabase no está configurado).');
+    }
+  }
+
+  async function dbSaveProducto(p){
+    if(supa){ const {error} = await supa.from('productos').upsert(sanitizeProducto(p)); if(error){ toast('err','Error guardando en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  async function dbDeleteProducto(id){
+    if(supa){ const {error} = await supa.from('productos').delete().eq('id', id); if(error){ toast('err','Error eliminando en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  async function dbSaveVenta(v){
+    if(supa){ const {error} = await supa.from('ventas').insert(sanitizeVenta(v)); if(error){ toast('err','Error guardando la venta en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  async function dbUpdateVenta(v){
+    if(supa){ const {error} = await supa.from('ventas').update(sanitizeVenta(v)).eq('id', v.id); if(error){ toast('err','Error actualizando la venta en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  async function dbSaveCierre(c){
+    if(supa){ const {error} = await supa.from('cierres_caja').insert(c); if(error){ toast('err','Error guardando el cierre en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  // El historial de auditoría (quién cambió el precio o el stock, y cuándo)
+  // solo se guarda cuando hay Supabase conectado: es un registro pensado
+  // para supervisar varias cajas/dispositivos, no tiene sentido en un único
+  // navegador local.
+  const CAMPO_LABEL = {cantidad_disponible:'Cantidad disponible', precio_compra:'Precio de compra', precio_venta:'Precio de venta'};
+  async function dbSaveHistorial(productoId, nombre, cambios, responsable){
+    if(!supa) return;
+    const filas = cambios.map(c => ({
+      producto_id: productoId, producto_nombre: nombre, campo: CAMPO_LABEL[c.campo]||c.campo,
+      valor_anterior: String(c.valor_anterior), valor_nuevo: String(c.valor_nuevo),
+      responsable, fecha: new Date().toISOString()
+    }));
+    const {error} = await supa.from('productos_historial').insert(filas);
+    if(error) toast('err','No se pudo guardar el historial de cambios: '+error.message);
+  }
+  async function fetchHistorialProducto(productoId){
+    if(!supa) return null;
+    const {data, error} = await supa.from('productos_historial').select('*').eq('producto_id', productoId).order('fecha', {ascending:false}).limit(15);
+    if(error) return null;
+    return data;
+  }
+  async function dbSaveConfig(){
+    if(supa){
+      const cfgRow = Object.assign({id:1}, STATE.config);
+      delete cfgRow.supabaseUrl; delete cfgRow.supabaseKey; delete cfgRow.password; delete cfgRow.passwordVentas;
+      const {error} = await supa.from('config').upsert(cfgRow);
+      if(error){ toast('err','Error guardando configuración en Supabase: '+error.message); throw error; }
+    }
+    await persistLocalBlob();
+  }
+  // Alias para compatibilidad con el resto del código existente.
+  async function persist(){ await persistLocalBlob(); return true; }
+
+  function seedProducts(){
+    const hoy = new Date();
+    const iso = (offsetDays) => { const d = new Date(hoy.getTime() + offsetDays*86400000); return d.toISOString().slice(0,10); };
+    return [
+      {id:uid(), codigo:'MED-001', codigo_barras:'7701234500019', nombre:'Acetaminofén', presentacion:'Tabletas', concentracion:'500 mg', laboratorio:'Genfar', categoria:'Medicamentos',
+       cantidad_disponible:120, cantidad_minima:20, cantidad_maxima:200, ubicacion:'Estante A1', lote:'L2301', fecha_vencimiento: iso(400),
+       precio_compra:180, precio_venta:350, iva:19, proveedor:'Distribuidora Salud SAS',
+       invima:'INVIMA 2015M-0012345', invima_tipo:'Medicamento', invima_vencimiento: iso(900), requiere_formula:'No',
+       fecha_ingreso: iso(-60), ultima_actualizacion: iso(-2), responsable:'Sistema', observaciones:'Producto de alta rotación.'},
+      {id:uid(), codigo:'MED-014', codigo_barras:'7701234500149', nombre:'Ibuprofeno', presentacion:'Tabletas', concentracion:'400 mg', laboratorio:'La Santé', categoria:'Medicamentos',
+       cantidad_disponible:8, cantidad_minima:15, cantidad_maxima:150, ubicacion:'Estante A2', lote:'L1187', fecha_vencimiento: iso(35),
+       precio_compra:210, precio_venta:400, iva:19, proveedor:'Coldrugs',
+       invima:'', invima_tipo:'Medicamento', invima_vencimiento:'', requiere_formula:'No',
+       fecha_ingreso: iso(-90), ultima_actualizacion: iso(-5), responsable:'Sistema', observaciones:'Stock bajo, próximo a vencer. Falta cargar el registro INVIMA.'},
+      {id:uid(), codigo:'ANT-007', codigo_barras:'7701234500071', nombre:'Amoxicilina', presentacion:'Cápsulas', concentracion:'500 mg', laboratorio:'MK', categoria:'Medicamentos',
+       cantidad_disponible:0, cantidad_minima:10, cantidad_maxima:100, ubicacion:'Vitrina antibióticos', lote:'L0876', fecha_vencimiento: iso(300),
+       precio_compra:250, precio_venta:480, iva:19, proveedor:'Distribuidora Salud SAS',
+       invima:'INVIMA 2011M-0007890', invima_tipo:'Medicamento', invima_vencimiento: iso(1200), requiere_formula:'Sí',
+       fecha_ingreso: iso(-120), ultima_actualizacion: iso(-1), responsable:'Sistema', observaciones:'Requiere fórmula médica.'},
+      {id:uid(), codigo:'VIT-003', codigo_barras:'7701234500033', nombre:'Vitamina C', presentacion:'Tabletas masticables', concentracion:'1000 mg', laboratorio:'Nutrivida', categoria:'Vitaminas y suplementos',
+       cantidad_disponible:65, cantidad_minima:10, cantidad_maxima:120, ubicacion:'Vitrina central', lote:'L2450', fecha_vencimiento: iso(500),
+       precio_compra:400, precio_venta:750, iva:19, proveedor:'Nutrivida Colombia',
+       invima:'NSO2018-0004521', invima_tipo:'Notificación sanitaria', invima_vencimiento: iso(700), requiere_formula:'No',
+       fecha_ingreso: iso(-30), ultima_actualizacion: iso(-3), responsable:'Sistema', observaciones:''},
+      {id:uid(), codigo:'CP-021', codigo_barras:'7701234500217', nombre:'Crema hidratante corporal', presentacion:'Crema', concentracion:'250 ml', laboratorio:'Nivea', categoria:'Cuidado personal',
+       cantidad_disponible:30, cantidad_minima:5, cantidad_maxima:60, ubicacion:'Estante B1', lote:'L3320', fecha_vencimiento: iso(600),
+       precio_compra:9000, precio_venta:15900, iva:19, proveedor:'Distribuidora Bella Piel',
+       invima:'', invima_tipo:'Cosmético', invima_vencimiento:'', requiere_formula:'No',
+       fecha_ingreso: iso(-15), ultima_actualizacion: iso(-15), responsable:'Sistema', observaciones:''},
+      {id:uid(), codigo:'HIG-010', codigo_barras:'7701234500101', nombre:'Jabón antibacterial', presentacion:'Barra', concentracion:'120 g', laboratorio:'Protex', categoria:'Higiene',
+       cantidad_disponible:4, cantidad_minima:10, cantidad_maxima:80, ubicacion:'Estante C1', lote:'L1900', fecha_vencimiento: iso(250),
+       precio_compra:1800, precio_venta:3200, iva:19, proveedor:'Distribuidora Bella Piel',
+       invima:'', invima_tipo:'No requiere', invima_vencimiento:'', requiere_formula:'No',
+       fecha_ingreso: iso(-45), ultima_actualizacion: iso(-8), responsable:'Sistema', observaciones:'Reponer pronto.'}
+    ];
+  }
+
+  /* ============ TOASTS ============ */
+  function toast(kind, msg){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast ' + kind;
+    const icons = {
+      ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      err: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+    el.innerHTML = (icons[kind]||icons.info) + '<span>' + msg + '</span>';
+    wrap.appendChild(el);
+    setTimeout(()=> el.remove(), 3100);
+  }
+
+  /* ============ RENDER ============ */
+  function renderAll(){
+    renderStats();
+    renderRecent();
+    renderVencimientos();
+    renderGrid();
+    document.getElementById('cfgPhoneDisp').textContent = STATE.config.phone;
+    document.getElementById('cfgAddrDisp').textContent = STATE.config.address;
+    document.getElementById('heroTitle').textContent = STATE.config.title;
+    document.getElementById('heroSubtitle').textContent = STATE.config.subtitle;
+    renderAdminUI();
+    if(typeof renderVentasList === 'function') renderVentasList();
+    if(typeof renderPosCart === 'function') renderPosCart();
+    if(typeof renderCierreResumenLive === 'function') renderCierreResumenLive();
+    if(typeof renderCierresList === 'function') renderCierresList();
+  }
+
+  function renderStats(){
+    const total = STATE.productos.length;
+    const agotados = STATE.productos.filter(p=>calcularEstado(p)==='agotado').length;
+    const porVencer = STATE.productos.filter(p=>calcularEstado(p)==='por_vencer').length;
+    const disponibles = total - agotados - porVencer;
+    const sinInvima = STATE.productos.filter(p => p.invima_tipo && p.invima_tipo !== 'No requiere' && !p.invima).length;
+    const rows = [
+      {n: total, l:'Productos totales', cls:''},
+      {n: disponibles, l:'Disponibles', cls:'good'},
+      {n: porVencer, l:'Próximos a vencer', cls:'warn'},
+      {n: agotados, l:'Agotados', cls:'bad'},
+      {n: sinInvima, l:'Sin registro INVIMA', cls: sinInvima ? 'bad' : 'good'}
+    ];
+    document.getElementById('statsRow').innerHTML = rows.map(r =>
+      `<div class="stat-card ${r.cls}"><div class="n" data-count="${r.n}">0</div><div class="l">${r.l}</div></div>`
+    ).join('');
+    animateCounters();
+  }
+
+  function animateCounters(){
+    document.querySelectorAll('[data-count]').forEach(el=>{
+      const target = parseInt(el.getAttribute('data-count'),10);
+      let cur = 0;
+      const step = Math.max(1, Math.ceil(target/24));
+      const iv = setInterval(()=>{
+        cur += step;
+        if(cur >= target){ cur = target; clearInterval(iv); }
+        el.textContent = cur;
+      }, 22);
+    });
+  }
+
+  function renderRecent(){
+    const sorted = [...STATE.productos].sort((a,b)=> new Date(b.ultima_actualizacion||b.fecha_ingreso) - new Date(a.ultima_actualizacion||a.fecha_ingreso)).slice(0,5);
+    const el = document.getElementById('recentList');
+    if(!sorted.length){ el.innerHTML = '<p style="font-size:13px;color:var(--texto-suave);">Aún no hay productos registrados.</p>'; return; }
+    el.innerHTML = sorted.map(p=>{
+      const est = calcularEstado(p);
+      const colorMap = {disponible:'var(--verde)', por_vencer:'var(--ambar)', agotado:'var(--rojo)'};
+      return `<div class="mini-list-item">
+        <span class="mini-dot" style="background:${colorMap[est]}"></span>
+        <span class="nm">${escapeHtml(p.nombre)}</span>
+        <span class="badge-sm estado-${est}">${ESTADO_LABEL[est]}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderVencimientos(){
+    const banner = document.getElementById('venceBanner');
+    const list = document.getElementById('vencList');
+    if(!banner || !list) return;
+
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const conFecha = STATE.productos
+      .filter(p => p.fecha_vencimiento)
+      .map(p => {
+        const dias = Math.round((new Date(p.fecha_vencimiento+'T00:00:00') - hoy) / 86400000);
+        return {p, dias};
+      })
+      .filter(x => x.dias <= 60) // vencidos + próximos a vencer (mismo umbral que calcularEstado)
+      .sort((a,b) => a.dias - b.dias);
+
+    // ---- Banner superior: solo si hay algo realmente urgente (vencido o <=7 días) ----
+    const urgentes = conFecha.filter(x => x.dias <= 7);
+    if(urgentes.length){
+      const nombres = urgentes.slice(0,3).map(x=>x.p.nombre).join(', ') + (urgentes.length>3 ? ' y '+(urgentes.length-3)+' más' : '');
+      banner.innerHTML = `<div class="vence-banner">
+        <div class="vb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div class="vb-text"><b>⚠️ ${urgentes.length} producto(s) vencido(s) o por vencer esta semana</b><span>${escapeHtml(nombres)}</span></div>
+        <button class="btn btn-light" data-view-go="inventario">Revisar ahora</button>
+      </div>`;
+    } else {
+      banner.innerHTML = '';
+    }
+
+    // ---- Panel con el listado completo, ordenado del más urgente al menos urgente ----
+    if(!conFecha.length){
+      list.innerHTML = '<p style="font-size:13px;color:var(--texto-suave);">No hay productos vencidos ni próximos a vencer en los siguientes 60 días. 🎉</p>';
+      return;
+    }
+    list.innerHTML = conFecha.map(({p,dias})=>{
+      let cls, texto;
+      if(dias < 0){ cls='critico'; texto = 'Vencido hace '+Math.abs(dias)+' día(s)'; }
+      else if(dias === 0){ cls='critico'; texto = 'Vence hoy'; }
+      else if(dias <= 7){ cls='critico'; texto = 'Vence en '+dias+' día(s)'; }
+      else if(dias <= 30){ cls='medio'; texto = 'Vence en '+dias+' días'; }
+      else { cls='leve'; texto = 'Vence en '+dias+' días'; }
+      const dotColor = cls==='critico' ? 'var(--rojo)' : (cls==='medio' ? 'var(--ambar)' : 'var(--verde)');
+      return `<div class="venc-row">
+        <span class="vc-dot" style="background:${dotColor}"></span>
+        <div class="vc-info">
+          <div class="vc-nm">${escapeHtml(p.nombre)}</div>
+          <div class="vc-meta">${escapeHtml(p.codigo||'')} · Lote ${escapeHtml(p.lote||'—')} · ${p.cantidad_disponible} uds · vence ${fmtDate(p.fecha_vencimiento)}</div>
+        </div>
+        <span class="vc-days ${cls}">${texto}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderGrid(){
+    const q = (document.getElementById('searchInput').value||'').toLowerCase().trim();
+    const fc = document.getElementById('filterCategoria').value;
+    const fe = document.getElementById('filterEstado').value;
+    let list = STATE.productos.filter(p=>{
+      const matchQ = !q || p.nombre.toLowerCase().includes(q) || (p.codigo||'').toLowerCase().includes(q) || (p.laboratorio||'').toLowerCase().includes(q);
+      const matchC = !fc || p.categoria === fc;
+      const matchE = !fe || calcularEstado(p) === fe;
+      return matchQ && matchC && matchE;
+    });
+    const grid = document.getElementById('gridProductos');
+    if(!list.length){
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 7h-3V6a4 4 0 0 0-8 0v1H6a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1zM9 6a3 3 0 0 1 6 0v1H9z"/></svg>
+        <h3>No se encontraron productos</h3>
+        <p>Ajusta la búsqueda o los filtros para ver resultados.</p>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = list.map((p,i)=>{
+      const est = calcularEstado(p);
+      const cat = CAT_COLORS[p.categoria] || CAT_COLORS['Otros'];
+      const lowStock = Number(p.cantidad_disponible) <= Number(p.cantidad_minima||0);
+      const requiereFormula = p.requiere_formula === 'Sí';
+      const faltaInvima = p.invima_tipo && p.invima_tipo !== 'No requiere' && !p.invima;
+      return `<div class="card" style="--cat-color:${cat.c}; --cat-bg:${cat.bg}; animation-delay:${Math.min(i*0.04,0.4)}s" data-id="${p.id}">
+        <div class="card-top">
+          <span class="card-cat">${escapeHtml(p.categoria)}</span>
+          ${requiereFormula ? '<span class="card-cat" style="color:#8956D6; background:#F0E7FB;" title="Requiere fórmula médica">Rx</span>' : ''}
+        </div>
+        <h4>${escapeHtml(p.nombre)}</h4>
+        <div class="codigo mono">${escapeHtml(p.codigo)} ${p.concentracion ? '· '+escapeHtml(p.concentracion) : ''}</div>
+        <div class="meta">${escapeHtml(p.laboratorio||'—')} · ${escapeHtml(p.presentacion||'—')}</div>
+        <div class="meta" style="margin-top:2px;">INVIMA: ${p.invima ? escapeHtml(p.invima) : '<span style="color:var(--rojo); font-weight:600;">Sin registrar</span>'}</div>
+        <span class="estado-badge estado-${est} ${est==='agotado'?'pulse':''}"><span class="dot"></span>${ESTADO_LABEL[est]}${lowStock && est==='disponible' ? ' · stock bajo' : ''}</span>
+        ${faltaInvima ? '<span class="estado-badge estado-agotado" style="margin-left:6px;" title="Este tipo de producto normalmente requiere número de registro INVIMA"><span class="dot"></span>Falta INVIMA</span>' : ''}
+        <div class="card-bottom">
+          <div class="stock-num mono"><b>${p.cantidad_disponible}</b> uds</div>
+          <div class="card-actions">
+            <button class="act-view" data-view-id="${p.id}" title="Ver detalle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            ${isAdmin ? `<button class="act-edit" data-edit-id="${p.id}" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="act-del" data-del-id="${p.id}" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    grid.querySelectorAll('[data-view-id]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); openDetail(b.getAttribute('data-view-id')); }));
+    grid.querySelectorAll('[data-edit-id]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); openForm(b.getAttribute('data-edit-id')); }));
+    grid.querySelectorAll('[data-del-id]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); openDelete(b.getAttribute('data-del-id')); }));
+  }
+
+  function renderAdminUI(){
+    document.getElementById('adminPill').style.display = isAdmin ? 'flex' : 'none';
+    document.getElementById('settingsBtn').style.display = isAdmin ? 'flex' : 'none';
+    document.getElementById('logoutBtn').style.display = isAdmin ? 'flex' : 'none';
+    document.getElementById('addProductBtn').style.display = isAdmin ? 'inline-flex' : 'none';
+    const batchBtn = document.getElementById('batchToggleBtn');
+    if(batchBtn) batchBtn.style.display = isAdmin ? 'flex' : 'none';
+    if(!isAdmin && typeof setBatchMode === 'function' && batchMode){ setBatchMode(false); }
+    const loggedIn = isAdmin || isCajero;
+    document.getElementById('cajeroPill').style.display = (isCajero && !isAdmin) ? 'flex' : 'none';
+    document.getElementById('cajeroLoginBtn').style.display = loggedIn ? 'none' : 'flex';
+    document.getElementById('cajeroLogoutBtn').style.display = (isCajero && !isAdmin) ? 'flex' : 'none';
+  }
+
+  function escapeHtml(str){
+    return String(str==null?'':str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  /* ============ NAVEGACIÓN ============ */
+  function goView(name){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+name).classList.add('active');
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.view === name));
+    window.scrollTo({top:0, behavior:'smooth'});
+    if(name === 'inventario'){
+      setTimeout(()=>{ const el = document.getElementById('scanInput'); if(el) el.focus(); }, 350);
+    }
+    if(name === 'ventas'){
+      setTimeout(()=>{ const el = document.getElementById('posScanInput'); if(el) el.focus(); }, 350);
+    }
+  }
+  document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=>{ sfx.tab(); goView(t.dataset.view); }));
+  document.querySelectorAll('[data-view-go]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); goView(b.getAttribute('data-view-go')); }));
+
+  /* ============ MODALES genéricos ============ */
+  function openOverlay(id){ sfx.open(); document.getElementById(id).classList.add('show'); }
+  function closeOverlay(id){
+    document.getElementById(id).classList.remove('show');
+    const invActive = document.getElementById('view-inventario').classList.contains('active');
+    if(invActive){ setTimeout(()=>{ const el = document.getElementById('scanInput'); if(el) el.focus(); }, 200); }
+  }
+  document.querySelectorAll('[data-close]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); closeOverlay(b.getAttribute('data-close')); }));
+  document.querySelectorAll('.overlay').forEach(ov=> ov.addEventListener('click', (e)=>{ if(e.target===ov){ sfx.click(); closeOverlay(ov.id); } }));
+
+  /* ============ LOGIN ============ */
+  function openLogin(){
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    openOverlay('overlayLogin');
+    setTimeout(()=> document.getElementById('loginPassword').focus(), 200);
+  }
+  document.getElementById('logoBtn').addEventListener('click', ()=>{
+    if(isAdmin) return; // ya está logueado
+    openLogin();
+  });
+
+  // Verifica la contraseña de administrador. Si hay Supabase conectado, la
+  // verificación ocurre DENTRO de la base de datos (función RPC) para que la
+  // contraseña nunca viaje ni se guarde legible en el navegador ni en tablas
+  // consultables. Si no hay Supabase (modo local), se compara contra la copia
+  // guardada en este navegador — es la única opción sin backend propio.
+  async function verifyAdminPassword(val){
+    if(!val) return false;
+    if(supa){
+      try{
+        const {data, error} = await supa.rpc('check_admin_password', {check_pass: val});
+        if(error){ toast('err','No se pudo verificar con Supabase: '+error.message); return false; }
+        return data === true;
+      }catch(e){ toast('err','No se pudo verificar con Supabase.'); return false; }
+    }
+    return val === STATE.config.password;
+  }
+
+  async function tryLogin(){
+    const val = document.getElementById('loginPassword').value;
+    const ok = await verifyAdminPassword(val);
+    if(ok){
+      isAdmin = true;
+      sfx.success();
+      toast('ok', 'Sesión de administrador iniciada.');
+      closeOverlay('overlayLogin');
+      renderAdminUI();
+      renderGrid();
+    } else {
+      sfx.error();
+      document.getElementById('loginError').style.display = 'block';
+      const modal = document.getElementById('loginModal');
+      modal.classList.remove('pw-shake'); void modal.offsetWidth; modal.classList.add('pw-shake');
+    }
+  }
+  document.getElementById('loginSubmit').addEventListener('click', tryLogin);
+  document.getElementById('loginPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    isAdmin = false;
+    sfx.toggle();
+    toast('info', 'Sesión de administrador cerrada.');
+    renderAdminUI();
+    renderGrid();
+  });
+
+  /* ============ LOGIN VENDEDOR (solo permite vender) ============ */
+  function openLoginVentas(){
+    document.getElementById('loginVentasPassword').value = '';
+    document.getElementById('loginVentasError').style.display = 'none';
+    openOverlay('overlayLoginVentas');
+    setTimeout(()=> document.getElementById('loginVentasPassword').focus(), 200);
+  }
+  document.getElementById('cajeroLoginBtn').addEventListener('click', openLoginVentas);
+
+  async function verifyVendedorPassword(val){
+    if(!val) return false;
+    if(supa){
+      try{
+        const {data, error} = await supa.rpc('check_vendedor_password', {check_pass: val});
+        if(error){ toast('err','No se pudo verificar con Supabase: '+error.message); return false; }
+        if(data === true) return true;
+        return await verifyAdminPassword(val); // la contraseña de admin también sirve para vender
+      }catch(e){ toast('err','No se pudo verificar con Supabase.'); return false; }
+    }
+    return val === STATE.config.passwordVentas || val === STATE.config.password;
+  }
+
+  async function tryLoginVentas(){
+    const val = document.getElementById('loginVentasPassword').value;
+    const ok = await verifyVendedorPassword(val);
+    if(ok){
+      isCajero = true;
+      sfx.success();
+      toast('ok', 'Acceso de vendedor activado. Ya puedes facturar.');
+      closeOverlay('overlayLoginVentas');
+      renderAdminUI();
+      goView('ventas');
+    } else {
+      sfx.error();
+      document.getElementById('loginVentasError').style.display = 'block';
+      const modal = document.getElementById('loginVentasModal');
+      modal.classList.remove('pw-shake'); void modal.offsetWidth; modal.classList.add('pw-shake');
+    }
+  }
+  document.getElementById('loginVentasSubmit').addEventListener('click', tryLoginVentas);
+  document.getElementById('loginVentasPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLoginVentas(); });
+
+  document.getElementById('cajeroLogoutBtn').addEventListener('click', ()=>{
+    isCajero = false;
+    sfx.toggle();
+    toast('info', 'Sesión de vendedor cerrada.');
+    renderAdminUI();
+  });
+
+  /* ============ CONFIGURACIÓN ============ */
+  document.getElementById('settingsBtn').addEventListener('click', ()=>{
+    sfx.click();
+    document.getElementById('cfgTitle').value = STATE.config.title;
+    document.getElementById('cfgSubtitle').value = STATE.config.subtitle;
+    document.getElementById('cfgPhone').value = STATE.config.phone;
+    document.getElementById('cfgAddr').value = STATE.config.address;
+    document.getElementById('cfgCurPass').value = '';
+    document.getElementById('cfgNewPass').value = '';
+    document.getElementById('cfgCurPassVentas').value = '';
+    document.getElementById('cfgNewPassVentas').value = '';
+    document.getElementById('cfgSbUrl').value = STATE.config.supabaseUrl || '';
+    document.getElementById('cfgSbKey').value = STATE.config.supabaseKey || '';
+    document.getElementById('sbStatusText').textContent = supa ? '🟢 Conectado a Supabase — los datos se sincronizan entre todos los computadores.' : '⚪ Sin conectar — los datos solo viven en este navegador.';
+    document.getElementById('sbStatusText').style.color = supa ? 'var(--verde-oscuro)' : 'var(--texto-suave)';
+    renderBtStatus();
+    openOverlay('overlaySettings');
+  });
+  document.getElementById('btConnectBtn').addEventListener('click', ()=>{ sfx.click(); connectBluetoothPrinter(); });
+
+  document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
+    STATE.config.title = document.getElementById('cfgTitle').value.trim() || STATE.config.title;
+    STATE.config.subtitle = document.getElementById('cfgSubtitle').value.trim() || STATE.config.subtitle;
+    STATE.config.phone = document.getElementById('cfgPhone').value.trim() || STATE.config.phone;
+    STATE.config.address = document.getElementById('cfgAddr').value.trim() || STATE.config.address;
+    // Cambio de contraseñas: siempre exige la contraseña actual, sea o no
+    // haya Supabase conectado. Si hay Supabase, el cambio se hace mediante
+    // una función RPC que verifica y actualiza del lado de la base de datos.
+    const curPass = document.getElementById('cfgCurPass').value;
+    const newPass = document.getElementById('cfgNewPass').value.trim();
+    if(newPass){
+      if(!curPass){ sfx.error(); toast('err','Escribe la contraseña actual de administrador para poder cambiarla.'); return; }
+      if(supa){
+        try{
+          const {data, error} = await supa.rpc('update_admin_password', {current_pass: curPass, new_pass: newPass});
+          if(error || data !== true){ sfx.error(); toast('err','La contraseña actual de administrador no es correcta.'); return; }
+        }catch(e){ sfx.error(); toast('err','No se pudo cambiar la contraseña en Supabase.'); return; }
+      } else {
+        if(curPass !== STATE.config.password){ sfx.error(); toast('err','La contraseña actual de administrador no es correcta.'); return; }
+        STATE.config.password = newPass;
+      }
+    }
+    const curPassVentas = document.getElementById('cfgCurPassVentas').value;
+    const newPassVentas = document.getElementById('cfgNewPassVentas').value.trim();
+    if(newPassVentas){
+      if(!curPassVentas){ sfx.error(); toast('err','Escribe la contraseña actual de vendedor para poder cambiarla.'); return; }
+      if(supa){
+        try{
+          const {data, error} = await supa.rpc('update_vendedor_password', {current_pass: curPassVentas, new_pass: newPassVentas});
+          if(error || data !== true){ sfx.error(); toast('err','La contraseña actual de vendedor no es correcta.'); return; }
+        }catch(e){ sfx.error(); toast('err','No se pudo cambiar la contraseña en Supabase.'); return; }
+      } else {
+        if(curPassVentas !== STATE.config.passwordVentas){ sfx.error(); toast('err','La contraseña actual de vendedor no es correcta.'); return; }
+        STATE.config.passwordVentas = newPassVentas;
+      }
+    }
+
+    const sbUrl = document.getElementById('cfgSbUrl').value.trim();
+    const sbKey = document.getElementById('cfgSbKey').value.trim();
+    const sbChanged = sbUrl !== (STATE.config.supabaseUrl||'') || sbKey !== (STATE.config.supabaseKey||'');
+    STATE.config.supabaseUrl = sbUrl;
+    STATE.config.supabaseKey = sbKey;
+    writeSbLocalConfig(sbUrl, sbKey);
+
+    if(sbChanged && sbUrl && sbKey){
+      const connected = initSupabaseClient(sbUrl, sbKey);
+      if(connected){
+        try{
+          await loadFromSupabase();
+          setupRealtimeSync();
+          toast('ok','Conectado a Supabase. Sincronizando datos…');
+        }catch(e){
+          supa = null;
+          toast('err','No se pudo conectar a Supabase, revisa la URL y la llave.');
+        }
+      }
+    } else if(sbChanged && (!sbUrl || !sbKey)){
+      supa = null;
+      if(realtimeChannel){ try{ /* no hay cliente ya, el canal se limpia solo */ }catch(e){} realtimeChannel = null; }
+      toast('info','Se desconectó Supabase. Ahora se guarda solo localmente.');
+    }
+
+    try{
+      await dbSaveConfig();
+      sfx.success(); toast('ok','Configuración guardada.'); closeOverlay('overlaySettings'); renderAll();
+    }catch(e){ /* toast ya mostrado */ }
+  });
+
+  /* ============ FORMULARIO PRODUCTO ============ */
+  const formFields = ['codigo','codigo_barras','nombre','presentacion','concentracion','laboratorio','categoria','cantidad_disponible','cantidad_minima','cantidad_maxima','ubicacion','lote','fecha_vencimiento','precio_compra','precio_venta','iva','proveedor','invima','invima_tipo','invima_vencimiento','requiere_formula','responsable','observaciones'];
+
+  // Recuerda los últimos valores usados para que agregar el siguiente producto
+  // nuevo sea más rápido (no hay que volver a escribir lo repetitivo).
+  const lastUsed = { laboratorio:'', categoria:'Medicamentos', ubicacion:'', proveedor:'', iva:19, cantidad_minima:10, cantidad_maxima:100, responsable:'' };
+
+  function openForm(id){
+    if(!isAdmin){ sfx.error(); toast('err','Debes iniciar sesión como administrador.'); return; }
+    editingId = id || null;
+    document.getElementById('formTitle').textContent = id ? '✏️ Editar producto' : '➕ Agregar producto — completa todo de una vez';
+    const p = id ? STATE.productos.find(x=>x.id===id) : null;
+    formFields.forEach(f=>{
+      const el = document.getElementById('f_'+f);
+      el.value = p ? (p[f]!==undefined && p[f]!==null ? p[f] : '') : '';
+    });
+    if(!p){
+      // Producto nuevo: precargamos con lo último usado para agilizar cargas seguidas.
+      document.getElementById('f_categoria').value = lastUsed.categoria;
+      document.getElementById('f_laboratorio').value = lastUsed.laboratorio;
+      document.getElementById('f_ubicacion').value = lastUsed.ubicacion;
+      document.getElementById('f_proveedor').value = lastUsed.proveedor;
+      document.getElementById('f_iva').value = lastUsed.iva;
+      document.getElementById('f_cantidad_minima').value = lastUsed.cantidad_minima;
+      document.getElementById('f_cantidad_maxima').value = lastUsed.cantidad_maxima;
+      document.getElementById('f_responsable').value = lastUsed.responsable;
+    }
+    openOverlay('overlayForm');
+    setTimeout(()=> document.getElementById('f_nombre').focus(), 250);
+  }
+  document.getElementById('addProductBtn').addEventListener('click', ()=>{ sfx.click(); openForm(null); });
+
+  document.getElementById('saveProductBtn').addEventListener('click', async ()=>{
+    const form = document.getElementById('productForm');
+    if(!form.checkValidity()){ form.reportValidity(); sfx.error(); toast('err','Completa los campos obligatorios (código, nombre, cantidad y responsable).'); return; }
+    const data = {};
+    formFields.forEach(f=> data[f] = document.getElementById('f_'+f).value);
+    ['cantidad_disponible','cantidad_minima','cantidad_maxima','precio_compra','precio_venta','iva'].forEach(f=>{
+      data[f] = data[f] === '' ? 0 : Number(data[f]);
+    });
+    const nowIso = new Date().toISOString().slice(0,10);
+    const wasNew = !editingId;
+    let cambios = [];
+
+    if(editingId){
+      const idx = STATE.productos.findIndex(p=>p.id===editingId);
+      if(idx>-1){
+        const anterior = STATE.productos[idx];
+        ['cantidad_disponible','precio_compra','precio_venta'].forEach(campo=>{
+          if(String(anterior[campo]) !== String(data[campo])){
+            cambios.push({campo, valor_anterior: anterior[campo], valor_nuevo: data[campo]});
+          }
+        });
+        STATE.productos[idx] = Object.assign({}, anterior, data, {ultima_actualizacion: nowIso});
+      }
+    } else {
+      STATE.productos.push(Object.assign({id:uid(), fecha_ingreso: nowIso, ultima_actualizacion: nowIso}, data));
+    }
+    // Guarda estos valores para precargar el siguiente producto nuevo.
+    lastUsed.laboratorio = data.laboratorio || lastUsed.laboratorio;
+    lastUsed.categoria = data.categoria || lastUsed.categoria;
+    lastUsed.ubicacion = data.ubicacion || lastUsed.ubicacion;
+    lastUsed.proveedor = data.proveedor || lastUsed.proveedor;
+    lastUsed.iva = data.iva || lastUsed.iva;
+    lastUsed.cantidad_minima = data.cantidad_minima || lastUsed.cantidad_minima;
+    lastUsed.cantidad_maxima = data.cantidad_maxima || lastUsed.cantidad_maxima;
+    lastUsed.responsable = data.responsable || lastUsed.responsable;
+
+    try{
+      const savedProd = editingId ? STATE.productos.find(p=>p.id===editingId) : STATE.productos[STATE.productos.length-1];
+      await dbSaveProducto(savedProd);
+      if(cambios.length){ await dbSaveHistorial(savedProd.id, savedProd.nombre, cambios, data.responsable); }
+      sfx.success();
+      toast('ok', editingId ? 'Producto actualizado.' : 'Producto agregado al inventario, completo y listo.');
+      closeOverlay('overlayForm');
+      renderAll();
+      if(wasNew && batchMode){ toast('info', 'Puedes seguir escaneando el siguiente producto del lote.'); }
+    }catch(e){ /* el toast de error ya lo mostró dbSaveProducto */ }
+  });
+
+  /* ============ DETALLE ============ */
+  function openDetail(id){
+    const p = STATE.productos.find(x=>x.id===id);
+    if(!p) return;
+    const est = calcularEstado(p);
+    document.getElementById('detailTitle').textContent = p.nombre;
+    const rows = [
+      ['Código', p.codigo], ['Código de barras', p.codigo_barras||'—'], ['Presentación', p.presentacion||'—'], ['Concentración', p.concentracion||'—'],
+      ['Laboratorio', p.laboratorio||'—'], ['Categoría', p.categoria], ['Estado', ESTADO_LABEL[est]],
+      ['Cantidad disponible', p.cantidad_disponible], ['Cantidad mínima', p.cantidad_minima||'—'], ['Cantidad máxima', p.cantidad_maxima||'—'],
+      ['Ubicación', p.ubicacion||'—'], ['Lote', p.lote||'—'], ['Fecha de vencimiento', fmtDate(p.fecha_vencimiento)],
+      ['Precio de compra', fmtCOP(p.precio_compra)], ['Precio de venta (por unidad)', fmtCOP(p.precio_venta)], ['IVA', (p.iva||0)+'%'],
+      ['Proveedor', p.proveedor||'—'],
+      ['Registro INVIMA', p.invima||'—'], ['Tipo de registro', p.invima_tipo||'—'], ['Vencimiento registro INVIMA', p.invima_vencimiento ? fmtDate(p.invima_vencimiento) : '—'], ['Requiere fórmula médica', p.requiere_formula||'No'],
+      ['Fecha de ingreso', fmtDate(p.fecha_ingreso)], ['Última actualización', fmtDate(p.ultima_actualizacion)],
+      ['Responsable', p.responsable||'—'], ['Observaciones', p.observaciones||'—']
+    ];
+    document.getElementById('detailGrid').innerHTML = rows.map(r=>`<div class="detail-item"><span>${r[0]}</span><b>${escapeHtml(String(r[1]))}</b></div>`).join('');
+    const histBox = document.getElementById('detailHistorial');
+    if(histBox){
+      histBox.innerHTML = supa ? '<p style="font-size:12.5px;color:var(--texto-suave);">Cargando historial…</p>' : '<p style="font-size:12.5px;color:var(--texto-suave);">El historial de cambios solo está disponible con Supabase conectado.</p>';
+      if(supa){
+        fetchHistorialProducto(id).then(hist=>{
+          if(!hist || !hist.length){ histBox.innerHTML = '<p style="font-size:12.5px;color:var(--texto-suave);">Sin cambios registrados todavía.</p>'; return; }
+          histBox.innerHTML = hist.map(h=>`<div class="deuda-row"><span>${escapeHtml(h.campo)}: ${escapeHtml(h.valor_anterior)} → <b>${escapeHtml(h.valor_nuevo)}</b> <span style="color:var(--texto-suave);">(${escapeHtml(h.responsable||'—')})</span></span><span style="color:var(--texto-suave); font-size:11.5px;">${new Date(h.fecha).toLocaleDateString('es-CO')}</span></div>`).join('');
+        });
+      }
+    }
+    const foot = document.getElementById('detailFoot');
+    foot.innerHTML = isAdmin ? `<button class="btn btn-ghost" id="detailEditBtn">Editar</button><button class="btn btn-danger" id="detailDelBtn">Eliminar</button>` : `<button class="btn btn-ghost" data-close="overlayDetail">Cerrar</button>`;
+    openOverlay('overlayDetail');
+    if(isAdmin){
+      document.getElementById('detailEditBtn').addEventListener('click', ()=>{ sfx.click(); closeOverlay('overlayDetail'); openForm(id); });
+      document.getElementById('detailDelBtn').addEventListener('click', ()=>{ sfx.click(); closeOverlay('overlayDetail'); openDelete(id); });
+    } else {
+      foot.querySelectorAll('[data-close]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); closeOverlay('overlayDetail'); }));
+    }
+  }
+
+  /* ============ ELIMINAR ============ */
+  function openDelete(id){
+    if(!isAdmin){ sfx.error(); toast('err','Debes iniciar sesión como administrador.'); return; }
+    deletingId = id;
+    const p = STATE.productos.find(x=>x.id===id);
+    document.getElementById('deleteProdName').textContent = p ? p.nombre : '';
+    openOverlay('overlayDelete');
+  }
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async ()=>{
+    const idToDelete = deletingId;
+    STATE.productos = STATE.productos.filter(p=>p.id!==idToDelete);
+    try{
+      await dbDeleteProducto(idToDelete);
+      sfx.delete(); toast('ok','Producto eliminado.'); closeOverlay('overlayDelete'); renderAll();
+    }catch(e){ /* toast de error ya mostrado */ }
+  });
+
+  /* ============ ESCÁNER DE CÓDIGO DE BARRAS ============ */
+  // Los lectores de código de barras USB funcionan como un teclado: escriben
+  // el código muy rápido y luego envían "Enter". Detectamos ese patrón para
+  // saber que fue la pistola y no una persona escribiendo.
+  const scanInputEl = document.getElementById('scanInput');
+  const scanDot = document.getElementById('scanDot');
+  const scanStatusText = document.getElementById('scanStatusText');
+  const scanIconWrap = document.getElementById('scanIconWrap');
+  const scannerBadge = document.getElementById('scannerBadge');
+
+  // No existe forma en la web de leer si hay un dispositivo USB conectado
+  // (por seguridad del navegador). Lo que SÍ podemos detectar es el patrón de
+  // tecleo: una pistola escribe un código completo en milisegundos, algo que
+  // una persona no puede replicar a mano. Cuando vemos ese patrón, marcamos
+  // el lector como "detectado" — es la señal más honesta y confiable posible.
+  let scannerDetected = false;
+  function markScannerDetected(){
+    if(scannerDetected) return;
+    scannerDetected = true;
+    scannerBadge.textContent = '🟢 Lector detectado';
+    scannerBadge.title = 'Confirmado: se reconoció el patrón de una pistola física. Esto es solo informativo.';
+    scannerBadge.classList.add('detected');
+  }
+
+  let inputKeyTimes = [];
+  scanInputEl.addEventListener('keydown', (e)=>{
+    const now = Date.now();
+    if(e.key.length === 1){
+      inputKeyTimes.push(now);
+      if(inputKeyTimes.length > 30) inputKeyTimes.shift();
+    }
+  });
+
+  function lookupByCode(code){
+    const c = (code||'').trim().toLowerCase();
+    if(!c) return null;
+    return STATE.productos.find(p =>
+      (p.codigo_barras && p.codigo_barras.trim().toLowerCase() === c) ||
+      (p.codigo && p.codigo.trim().toLowerCase() === c)
+    );
+  }
+
+  function flashScanIcon(ok, el){
+    const target = el || scanIconWrap;
+    target.style.background = ok ? 'rgba(124,255,178,0.35)' : 'rgba(214,69,69,0.45)';
+    setTimeout(()=>{ target.style.background = ''; }, 500);
+  }
+
+  function processScan(rawCode){
+    const code = (rawCode||'').trim();
+    if(!code || code.length < 3) return;
+    goView('inventario');
+    if(batchMode && isAdmin){
+      addToBatch(code);
+      return;
+    }
+    const found = lookupByCode(code);
+    if(found){
+      sfx.scanOk();
+      flashScanIcon(true);
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterCategoria').value = '';
+      document.getElementById('filterEstado').value = '';
+      renderGrid();
+      openDetail(found.id);
+      toast('ok', 'Escaneado: ' + found.nombre);
+      const card = document.querySelector('.card[data-id="'+found.id+'"]');
+      if(card){ card.style.boxShadow = '0 0 0 3px var(--verde)'; setTimeout(()=> card.style.boxShadow = '', 900); }
+    } else if(isAdmin){
+      sfx.scanNew();
+      flashScanIcon(false);
+      openForm(null);
+      setTimeout(()=>{
+        document.getElementById('f_codigo_barras').value = code;
+        document.getElementById('f_codigo').value = code;
+        document.getElementById('f_nombre').focus();
+      }, 220);
+      toast('info', 'Código nuevo. Completa los datos y guarda — queda listo de una vez.');
+      return;
+    } else {
+      sfx.scanFail();
+      flashScanIcon(false);
+      toast('err', 'Código no encontrado en el inventario: ' + code);
+    }
+    refocusScanner();
+  }
+
+  function refocusScanner(){
+    setTimeout(()=>{
+      const overlayOpen = document.querySelector('.overlay.show');
+      const invActive = document.getElementById('view-inventario').classList.contains('active');
+      if(invActive && !overlayOpen) scanInputEl.focus();
+    }, 150);
+  }
+
+  scanInputEl.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const val = scanInputEl.value;
+      if(inputKeyTimes.length >= 4){
+        const span = inputKeyTimes[inputKeyTimes.length-1] - inputKeyTimes[0];
+        const avgDelta = span / (inputKeyTimes.length - 1);
+        if(avgDelta < 35) markScannerDetected();
+      }
+      inputKeyTimes = [];
+      scanInputEl.value = '';
+      processScan(val);
+    }
+  });
+  scanInputEl.addEventListener('focus', ()=>{
+    scanDot.classList.remove('off');
+    scanStatusText.textContent = 'Lista para escanear — el foco está en este campo';
+  });
+  scanInputEl.addEventListener('blur', ()=>{
+    scanDot.classList.add('off');
+    scanStatusText.textContent = 'En pausa — haz clic aquí o cambia a Inventario para reactivar';
+  });
+
+  // Respaldo: si la pistola escanea mientras el foco está en cualquier otro
+  // lugar (no un campo de texto), igual detectamos el patrón rápido + Enter.
+  let scanBuffer = '';
+  let scanTimestamps = [];
+  document.addEventListener('keydown', (e)=>{
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if(isTyping) return;
+    const overlayOpen = document.querySelector('.overlay.show');
+    const invActive = document.getElementById('view-inventario').classList.contains('active');
+    const ventasActive = document.getElementById('view-ventas').classList.contains('active');
+    if(overlayOpen || (!invActive && !ventasActive)) return;
+    const now = Date.now();
+    if(e.key === 'Enter'){
+      if(scanBuffer.length >= 4){
+        const span = scanTimestamps[scanTimestamps.length-1] - scanTimestamps[0];
+        const avgDelta = span / Math.max(1, scanTimestamps.length - 1);
+        if(avgDelta < 35) markScannerDetected();
+        if(invActive) processScan(scanBuffer); else processPosScan(scanBuffer);
+      }
+      scanBuffer = ''; scanTimestamps = [];
+      return;
+    }
+    if(e.key.length === 1){
+      if(scanTimestamps.length && now - scanTimestamps[scanTimestamps.length-1] > 80){
+        scanBuffer = ''; scanTimestamps = [];
+      }
+      scanBuffer += e.key;
+      scanTimestamps.push(now);
+    }
+  });
+
+  /* ============ MODO CARGA POR LOTE ============ */
+  let batchMode = false;
+  let batchQueue = []; // {tempId, code, existingId, nombre, categoria, cantidad, isNew}
+
+  const batchToggleBtn = document.getElementById('batchToggleBtn');
+  const batchPanel = document.getElementById('batchPanel');
+
+  function setBatchMode(on){
+    batchMode = on;
+    batchToggleBtn.classList.toggle('on', on);
+    document.getElementById('batchToggleLabel').textContent = on ? 'Lote activo — sigue escaneando' : 'Modo carga por lote';
+    batchPanel.style.display = on ? 'block' : 'none';
+    scanStatusText.textContent = on
+      ? 'Modo lote activo — cada escaneo se suma a la lista de abajo'
+      : 'Lista para escanear — el foco está en este campo';
+    if(!on){ batchQueue = []; renderBatchPanel(); }
+    refocusScanner();
+  }
+
+  batchToggleBtn.addEventListener('click', ()=>{
+    if(!isAdmin) return;
+    sfx.toggle();
+    if(batchMode && batchQueue.length){
+      if(!confirm('Tienes ' + batchQueue.length + ' producto(s) sin aplicar en el lote. ¿Salir de todas formas y perderlos?')) return;
+    }
+    setBatchMode(!batchMode);
+  });
+
+  document.getElementById('batchCancelBtn').addEventListener('click', ()=>{
+    sfx.click();
+    if(batchQueue.length && !confirm('¿Cancelar el lote y descartar los ' + batchQueue.length + ' producto(s) escaneados?')) return;
+    batchQueue = [];
+    renderBatchPanel();
+    refocusScanner();
+  });
+
+  function addToBatch(code){
+    const found = lookupByCode(code);
+    if(found){
+      const existingRow = batchQueue.find(r => r.existingId === found.id);
+      if(existingRow){ existingRow.cantidad += 1; }
+      else { batchQueue.push({tempId:uid(), code, existingId:found.id, nombre:found.nombre, categoria:found.categoria, cantidad:1, isNew:false}); }
+      sfx.scanOk(); flashScanIcon(true);
+      renderBatchPanel();
+      refocusScanner();
+      return;
+    }
+    // Código nuevo: no lo dejamos a medias en la lista. Abrimos el formulario
+    // completo de una vez para llenar todos los datos y guardarlo ya listo.
+    sfx.scanNew();
+    flashScanIcon(false);
+    toast('info', 'Código nuevo detectado. Completa los datos y guarda — el escaneo continúa después.');
+    openForm(null);
+    setTimeout(()=>{
+      document.getElementById('f_codigo_barras').value = code;
+      document.getElementById('f_codigo').value = code;
+      document.getElementById('f_nombre').focus();
+    }, 220);
+    // refocusScanner() se llama solo al cerrar el modal (ver closeOverlay),
+    // así el lote sigue exactamente donde iba una vez guardes este producto.
+  }
+
+  function renderBatchPanel(){
+    document.getElementById('batchCount').textContent = batchQueue.length + (batchQueue.length === 1 ? ' producto' : ' productos');
+    const list = document.getElementById('batchList');
+    if(!batchQueue.length){
+      list.innerHTML = '<p style="font-size:12.5px; color:var(--texto-suave); padding:6px 2px;">Aún no has escaneado nada en este lote. Escanea el primer producto para empezar.</p>';
+      return;
+    }
+    list.innerHTML = batchQueue.map(r => `
+      <div class="batch-row ${r.isNew ? 'is-new' : ''}" data-temp="${r.tempId}">
+        <div class="br-icon">${r.isNew
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'}</div>
+        <div class="br-info">
+          <div class="br-code mono">${escapeHtml(r.code)}${r.isNew ? ' · código nuevo' : ''}</div>
+          ${r.isNew
+            ? `<div class="br-newfields">
+                 <input type="text" placeholder="Nombre del producto *" value="${escapeHtml(r.nombre)}" data-batch-name="${r.tempId}">
+                 <select data-batch-cat="${r.tempId}">
+                   ${['Medicamentos','Cuidado personal','Vitaminas y suplementos','Higiene','Otros'].map(c=>`<option ${c===r.categoria?'selected':''}>${c}</option>`).join('')}
+                 </select>
+               </div>`
+            : `<div class="br-name">${escapeHtml(r.nombre)}</div>`}
+        </div>
+        <div class="br-qty">
+          <button data-batch-minus="${r.tempId}">−</button>
+          <span>${r.cantidad}</span>
+          <button data-batch-plus="${r.tempId}">+</button>
+        </div>
+        <button class="br-remove" data-batch-remove="${r.tempId}" title="Quitar de la lista">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`).join('');
+
+    list.querySelectorAll('[data-batch-plus]').forEach(b=> b.addEventListener('click', ()=>{
+      const row = batchQueue.find(r=>r.tempId===b.getAttribute('data-batch-plus'));
+      if(row){ row.cantidad++; sfx.click(); renderBatchPanel(); }
+    }));
+    list.querySelectorAll('[data-batch-minus]').forEach(b=> b.addEventListener('click', ()=>{
+      const row = batchQueue.find(r=>r.tempId===b.getAttribute('data-batch-minus'));
+      if(row && row.cantidad>1){ row.cantidad--; sfx.click(); renderBatchPanel(); }
+    }));
+    list.querySelectorAll('[data-batch-remove]').forEach(b=> b.addEventListener('click', ()=>{
+      sfx.delete();
+      batchQueue = batchQueue.filter(r=>r.tempId!==b.getAttribute('data-batch-remove'));
+      renderBatchPanel();
+    }));
+    list.querySelectorAll('[data-batch-name]').forEach(inp=> inp.addEventListener('input', ()=>{
+      const row = batchQueue.find(r=>r.tempId===inp.getAttribute('data-batch-name'));
+      if(row) row.nombre = inp.value;
+    }));
+    list.querySelectorAll('[data-batch-cat]').forEach(sel=> sel.addEventListener('change', ()=>{
+      const row = batchQueue.find(r=>r.tempId===sel.getAttribute('data-batch-cat'));
+      if(row) row.categoria = sel.value;
+    }));
+  }
+
+  document.getElementById('batchApplyBtn').addEventListener('click', async ()=>{
+    if(!batchQueue.length){ toast('err','No hay productos en el lote todavía.'); return; }
+    const responsable = document.getElementById('batchResponsable').value.trim();
+    if(!responsable){ sfx.error(); toast('err','Escribe el responsable de esta carga antes de aplicar.'); document.getElementById('batchResponsable').focus(); return; }
+    const missingName = batchQueue.find(r => r.isNew && !r.nombre.trim());
+    if(missingName){
+      sfx.error(); toast('err','Completa el nombre de todos los códigos nuevos antes de aplicar.');
+      const row = document.querySelector('.batch-row[data-temp="'+missingName.tempId+'"] [data-batch-name]');
+      if(row) row.focus();
+      return;
+    }
+    const nowIso = new Date().toISOString().slice(0,10);
+    const touched = [];
+    const historialLote = [];
+    batchQueue.forEach(r=>{
+      if(r.isNew){
+        const np = {
+          id:uid(), codigo:r.code, codigo_barras:r.code, nombre:r.nombre.trim(), presentacion:'', concentracion:'',
+          laboratorio:'', categoria:r.categoria, cantidad_disponible:r.cantidad, cantidad_minima:0, cantidad_maxima:0,
+          ubicacion:'', lote:'', fecha_vencimiento:'', precio_compra:0, precio_venta:0, iva:0, proveedor:'',
+          fecha_ingreso:nowIso, ultima_actualizacion:nowIso, responsable, observaciones:'Agregado por carga masiva con escáner.'
+        };
+        STATE.productos.push(np);
+        touched.push(np);
+      } else {
+        const p = STATE.productos.find(x=>x.id===r.existingId);
+        if(p){
+          const cantidadAnterior = Number(p.cantidad_disponible)||0;
+          p.cantidad_disponible = cantidadAnterior + r.cantidad;
+          p.ultima_actualizacion = nowIso; p.responsable = responsable;
+          touched.push(p);
+          historialLote.push({productoId:p.id, nombre:p.nombre, cambios:[{campo:'cantidad_disponible', valor_anterior:cantidadAnterior, valor_nuevo:p.cantidad_disponible}]});
+        }
+      }
+    });
+    try{
+      for(const p of touched){ await dbSaveProducto(p); }
+      for(const h of historialLote){ await dbSaveHistorial(h.productoId, h.nombre, h.cambios, responsable); }
+      sfx.success();
+      toast('ok', 'Se aplicaron ' + batchQueue.length + ' producto(s) al inventario.');
+      batchQueue = [];
+      document.getElementById('batchResponsable').value = '';
+      renderBatchPanel();
+      renderAll();
+      refocusScanner();
+    }catch(e){ /* toast de error ya mostrado por dbSaveProducto */ }
+  });
+
+  /* ============ PUNTO DE VENTA (VENTAS) ============ */
+  let posCart = []; // {tempId, productoId, nombre, codigo, categoria, modo, modos, cantidad}
+
+  function posModesFor(p){
+    // Todo el sistema vende y descuenta en unidades individuales: 1 unidad
+    // en la factura = 1 unidad menos en cantidad_disponible del inventario.
+    return [{key:'unidad', label:'Unidad', price: Number(p.precio_venta)||0, consumo:1}];
+  }
+
+  function processPosScan(code){
+    code = (code||'').trim();
+    if(!code || code.length < 3) return;
+    const found = lookupByCode(code);
+    const posIcon = document.getElementById('posScanIconWrap');
+    if(!found){ sfx.scanFail(); flashScanIcon(false, posIcon); toast('err','Producto no encontrado: '+code); return; }
+    if(calcularEstado(found)==='agotado'){ sfx.scanFail(); flashScanIcon(false, posIcon); toast('err', found.nombre + ' está agotado.'); return; }
+    const modes = posModesFor(found);
+    const defaultMode = modes[0];
+    const existing = posCart.find(r=> r.productoId===found.id && r.modo===defaultMode.key);
+    if(existing){ existing.cantidad += 1; }
+    else{ posCart.push({tempId:uid(), productoId:found.id, nombre:found.nombre, codigo:found.codigo, categoria:found.categoria, modo:defaultMode.key, modos:modes, cantidad:1}); }
+    sfx.scanOk(); flashScanIcon(true, posIcon);
+    renderPosCart();
+  }
+
+  function renderPosCart(){
+    const list = document.getElementById('posCartList');
+    const summary = document.getElementById('posSummary');
+    if(!list || !summary) return;
+    if(!posCart.length){
+      list.innerHTML = '<div class="pos-empty">Escanea un producto para comenzar la factura.</div>';
+      summary.innerHTML = '';
+      return;
+    }
+    list.innerHTML = posCart.map(r=>{
+      const mode = r.modos.find(m=>m.key===r.modo) || r.modos[0];
+      const subtotal = mode.price * r.cantidad;
+      const stockProd = STATE.productos.find(p=>p.id===r.productoId);
+      const stockDisp = stockProd ? Number(stockProd.cantidad_disponible)||0 : 0;
+      return `<div class="pos-row" data-temp="${r.tempId}">
+        <div class="pr-info">
+          <div class="pr-name">${escapeHtml(r.nombre)}</div>
+          <div class="pr-sub">${fmtCOP(mode.price)} c/u · disponible: ${stockDisp} uds</div>
+        </div>
+        <div class="pr-qty"><button data-pos-minus="${r.tempId}">−</button><input type="number" min="1" max="${stockDisp}" value="${r.cantidad}" data-pos-input="${r.tempId}"><button data-pos-plus="${r.tempId}">+</button></div>
+        <div class="pr-price">${fmtCOP(subtotal)}</div>
+        <button class="pr-remove" data-pos-remove="${r.tempId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>`;
+    }).join('');
+
+    const total = posCart.reduce((sum,r)=>{ const m=r.modos.find(x=>x.key===r.modo)||r.modos[0]; return sum + m.price*r.cantidad; },0);
+    const items = posCart.reduce((s,r)=>s+r.cantidad,0);
+    summary.innerHTML = `<div class="pos-summary-row"><span>Artículos</span><span>${items}</span></div><div class="pos-summary-row total"><span>Total</span><span>${fmtCOP(total)}</span></div>`;
+
+    function setCantidad(tempId, val){
+      const r = posCart.find(x=>x.tempId===tempId);
+      if(!r) return;
+      const stockProd = STATE.productos.find(p=>p.id===r.productoId);
+      const stockDisp = stockProd ? Number(stockProd.cantidad_disponible)||0 : 0;
+      let cant = Math.floor(Number(val))||0;
+      if(cant < 1) cant = 1;
+      if(cant > stockDisp){ cant = stockDisp; toast('err','Solo hay '+stockDisp+' unidades disponibles de '+r.nombre+'.'); }
+      r.cantidad = cant;
+      renderPosCart();
+    }
+    list.querySelectorAll('[data-pos-plus]').forEach(b=> b.addEventListener('click', ()=>{ const r=posCart.find(x=>x.tempId===b.getAttribute('data-pos-plus')); if(r){ setCantidad(r.tempId, r.cantidad+1); sfx.click(); } }));
+    list.querySelectorAll('[data-pos-minus]').forEach(b=> b.addEventListener('click', ()=>{ const r=posCart.find(x=>x.tempId===b.getAttribute('data-pos-minus')); if(r && r.cantidad>1){ setCantidad(r.tempId, r.cantidad-1); sfx.click(); } }));
+    list.querySelectorAll('[data-pos-input]').forEach(inp=>{
+      inp.addEventListener('change', ()=> setCantidad(inp.getAttribute('data-pos-input'), inp.value));
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); setCantidad(inp.getAttribute('data-pos-input'), inp.value); } });
+    });
+    list.querySelectorAll('[data-pos-remove]').forEach(b=> b.addEventListener('click', ()=>{ sfx.delete(); posCart = posCart.filter(x=>x.tempId!==b.getAttribute('data-pos-remove')); renderPosCart(); }));
+    list.querySelectorAll('[data-pos-mode]').forEach(sel=> sel.addEventListener('change', ()=>{ const r=posCart.find(x=>x.tempId===sel.getAttribute('data-pos-mode')); if(r){ r.modo = sel.value; renderPosCart(); } }));
+  }
+
+  const posScanInputEl = document.getElementById('posScanInput');
+  posScanInputEl.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); const val = posScanInputEl.value; posScanInputEl.value=''; processPosScan(val); }
+  });
+  posScanInputEl.addEventListener('focus', ()=>{ document.getElementById('posScanDot').classList.remove('off'); document.getElementById('posScanStatusText').textContent = 'Lista para escanear'; });
+  posScanInputEl.addEventListener('blur', ()=>{ document.getElementById('posScanDot').classList.add('off'); document.getElementById('posScanStatusText').textContent = 'En pausa — haz clic aquí para reactivar'; });
+
+  document.getElementById('posFiado').addEventListener('change', function(){
+    document.getElementById('posAbonoWrap').style.display = this.checked ? 'block' : 'none';
+  });
+
+  document.getElementById('posClearBtn').addEventListener('click', ()=>{
+    if(posCart.length && !confirm('¿Vaciar la factura actual?')) return;
+    posCart = []; renderPosCart(); sfx.click();
+  });
+
+  document.getElementById('posCobrarBtn').addEventListener('click', async ()=>{
+    if(!isAdmin && !isCajero){ sfx.error(); toast('err','Debes iniciar sesión (botón de la caja registradora, arriba) para vender.'); openLoginVentas(); return; }
+    if(!posCart.length){ sfx.error(); toast('err','Agrega al menos un producto a la factura.'); return; }
+    const responsable = document.getElementById('posResponsable').value.trim();
+    if(!responsable){ sfx.error(); toast('err','Escribe el nombre del vendedor.'); document.getElementById('posResponsable').focus(); return; }
+    for(const r of posCart){
+      const p = STATE.productos.find(x=>x.id===r.productoId);
+      const mode = r.modos.find(m=>m.key===r.modo)||r.modos[0];
+      const consumo = mode.consumo * r.cantidad;
+      if(!p || Number(p.cantidad_disponible) < consumo){ sfx.error(); toast('err','No hay suficiente stock de '+(p?p.nombre:r.nombre)+'.'); return; }
+    }
+    const cliente = document.getElementById('posCliente').value.trim() || 'Cliente ocasional';
+    const fiado = document.getElementById('posFiado').checked;
+    const abono = fiado ? (Number(document.getElementById('posAbono').value)||0) : 0;
+    const items = posCart.map(r=>{
+      const mode = r.modos.find(m=>m.key===r.modo)||r.modos[0];
+      return {producto_id:r.productoId, nombre:r.nombre, codigo:r.codigo, modo:mode.label, cantidad:r.cantidad, precio_unitario:mode.price, subtotal:mode.price*r.cantidad, consumo_stock: mode.consumo*r.cantidad};
+    });
+    const total = items.reduce((s,i)=>s+i.subtotal,0);
+    const nowIso = new Date().toISOString();
+    const ventaId = uid();
+
+    try{
+      let venta;
+      if(supa){
+        // Toda la venta (verificar stock, descontarlo e insertar la factura)
+        // ocurre en una sola transacción dentro de la base de datos: o se
+        // aplica todo, o no se aplica nada. Así el inventario nunca queda a
+        // medio actualizar si algo falla a mitad de una venta.
+        const {data, error} = await supa.rpc('registrar_venta_atomica', {
+          p_id: ventaId, p_cliente: cliente, p_responsable: responsable,
+          p_items: items, p_total: total, p_fiado: fiado, p_abono: abono
+        });
+        if(error){ sfx.error(); toast('err','No se pudo registrar la venta: '+error.message); return; }
+        venta = data;
+        // Refrescamos productos y ventas desde Supabase para reflejar el
+        // descuento de stock hecho del lado del servidor.
+        await loadFromSupabase();
+      } else {
+        const pagos = (fiado && abono>0) ? [{monto:abono, fecha:nowIso, responsable}] : [];
+        const numeroLocal = (STATE.ventas.reduce((m,v)=>Math.max(m, Number(v.numero_factura)||0), 0)) + 1;
+        venta = {
+          id: ventaId, numero_factura: numeroLocal, fecha: nowIso, cliente, responsable, items, total,
+          fiado, pagado: !fiado, abono, saldo: fiado ? Math.max(0,total-abono) : 0, notas:'', pagos
+        };
+        for(const r of posCart){
+          const p = STATE.productos.find(x=>x.id===r.productoId);
+          const mode = r.modos.find(m=>m.key===r.modo)||r.modos[0];
+          p.cantidad_disponible = Number(p.cantidad_disponible) - (mode.consumo*r.cantidad);
+          p.ultima_actualizacion = nowIso.slice(0,10);
+        }
+        STATE.ventas.unshift(venta);
+        await persistLocalBlob();
+      }
+      sfx.success();
+      toast('ok', 'Venta registrada' + (fiado ? ' (fiada).' : '.'));
+      printRecibo(venta);
+      posCart = [];
+      document.getElementById('posCliente').value = '';
+      document.getElementById('posFiado').checked = false;
+      document.getElementById('posAbono').value = 0;
+      document.getElementById('posAbonoWrap').style.display = 'none';
+      renderAll();
+    }catch(e){ sfx.error(); toast('err','No se pudo registrar la venta.'); }
+  });
+
+  /* ============ IMPRESIÓN BLUETOOTH DIRECTA (Web Bluetooth / ESC-POS) ============ */
+  // Camino alternativo al de "impresora del sistema" (window.print). Se
+  // conecta directo a la impresora térmica por Bluetooth de baja energía y le
+  // manda comandos ESC/POS crudos — el estándar que usan casi todas las
+  // impresoras térmicas de 58mm genéricas, sin importar la marca.
+  // SOLO funciona en navegadores basados en Chrome (Android o computador).
+  // Safari e iPhone no soportan esta tecnología del todo.
+  let btDevice = null, btCharacteristic = null;
+  const BT_SERVICE_UUIDS = [
+    '000018f0-0000-1000-8000-00805f9b34fb', // servicio genérico usado por muchas impresoras clon
+    '0000ff00-0000-1000-8000-00805f9b34fb', // otro servicio genérico muy común
+    '49535343-fe7d-4ae5-8fa9-9fafd205e455', // UART transparente (Microchip/ISSC), usado por varias marcas chinas
+    'e7810a71-73ae-499d-8c15-faa9aef0c3f2'  // servicio usado por algunos módulos BLE de impresoras
+  ];
+
+  function bluetoothSoportado(){ return !!(navigator.bluetooth); }
+
+  async function connectBluetoothPrinter(){
+    if(!bluetoothSoportado()){
+      toast('err','Este navegador no soporta Bluetooth directo (funciona en Chrome, no en Safari/iPhone). Usa la alternativa con RawBT.');
+      return;
+    }
+    try{
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: BT_SERVICE_UUIDS
+      });
+      const server = await device.gatt.connect();
+      let encontrada = null;
+      for(const sUuid of BT_SERVICE_UUIDS){
+        try{
+          const service = await server.getPrimaryService(sUuid);
+          const chars = await service.getCharacteristics();
+          encontrada = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+          if(encontrada) break;
+        }catch(e){ /* este servicio no existe en este dispositivo, seguimos probando con el siguiente */ }
+      }
+      if(!encontrada){
+        toast('err','Se conectó al dispositivo pero no se encontró un canal de impresión compatible. Prueba con RawBT en su lugar.');
+        return;
+      }
+      btDevice = device; btCharacteristic = encontrada;
+      device.addEventListener('gattserverdisconnected', ()=>{ btCharacteristic = null; toast('info','Se desconectó la impresora Bluetooth.'); renderBtStatus(); });
+      toast('ok','Impresora Bluetooth conectada: ' + (device.name || 'dispositivo'));
+      renderBtStatus();
+    }catch(e){
+      if(e && e.name === 'NotFoundError') return; // el usuario cerró el selector, no es un error real
+      toast('err','No se pudo conectar por Bluetooth: ' + e.message);
+    }
+  }
+
+  function disconnectBluetoothPrinter(){
+    if(btDevice && btDevice.gatt && btDevice.gatt.connected) btDevice.gatt.disconnect();
+    btDevice = null; btCharacteristic = null;
+    renderBtStatus();
+  }
+
+  async function sendBytesToBluetoothPrinter(bytes){
+    if(!btCharacteristic) return false;
+    const chunkSize = 100; // varias impresoras BLE rechazan paquetes grandes
+    for(let i=0; i<bytes.length; i+=chunkSize){
+      const chunk = bytes.slice(i, i+chunkSize);
+      try{ await btCharacteristic.writeValueWithoutResponse(chunk); }
+      catch(e){ await btCharacteristic.writeValue(chunk); }
+      await new Promise(r=>setTimeout(r, 25));
+    }
+    return true;
+  }
+
+  // Muchas impresoras térmicas clon no interpretan bien los acentos en UTF-8;
+  // por seguridad, para el texto que se manda por Bluetooth los quitamos.
+  function quitarAcentos(str){
+    return String(str==null?'':str)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/ñ/gi, m => m==='ñ' ? 'n' : 'N');
+  }
+  const ESC = 0x1B, GS = 0x1D;
+  function escInit(){ return [ESC,0x40]; }
+  function escAlign(a){ return [ESC,0x61,a]; } // 0 izquierda, 1 centro, 2 derecha
+  function escBold(on){ return [ESC,0x45,on?1:0]; }
+  function escFeed(n){ return [ESC,0x64,n]; }
+  function escCut(){ return [GS,0x56,0]; }
+  function txt(str){ return Array.from(new TextEncoder().encode(quitarAcentos(str))); }
+  function linea(ch, n){ return txt(ch.repeat(n)+'\n'); }
+  function colDerecha(izq, der, ancho){
+    izq = quitarAcentos(izq); der = quitarAcentos(der);
+    const espacio = Math.max(1, ancho - izq.length - der.length);
+    return txt(izq + ' '.repeat(espacio) + der + '\n');
+  }
+
+  function buildReceiptEscPos(venta){
+    const ancho = 32; // ~32 caracteres por línea en papel de 58mm, letra normal
+    let b = [];
+    b.push(...escInit());
+    b.push(...escAlign(1)); b.push(...escBold(true));
+    b.push(...txt('BioFarma\n'));
+    b.push(...escBold(false));
+    b.push(...txt((STATE.config.address||'Pitalito, Huila')+'\n'));
+    b.push(...txt('Tel: '+(STATE.config.phone||'')+'\n'));
+    b.push(...escAlign(0));
+    b.push(...linea('-', ancho));
+    const fecha = new Date(venta.fecha);
+    b.push(...txt('Fecha: '+fecha.toLocaleDateString('es-CO')+' '+fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})+'\n'));
+    b.push(...txt('Cliente: '+venta.cliente+'\n'));
+    b.push(...txt('Atiende: '+venta.responsable+'\n'));
+    b.push(...linea('-', ancho));
+    venta.items.forEach(i=>{
+      b.push(...txt(i.nombre.slice(0,ancho)+'\n'));
+      b.push(...colDerecha(i.cantidad+' x '+fmtCOP(i.precio_unitario), fmtCOP(i.subtotal), ancho));
+    });
+    b.push(...linea('-', ancho));
+    b.push(...escBold(true));
+    b.push(...colDerecha('TOTAL', fmtCOP(venta.total), ancho));
+    b.push(...escBold(false));
+    if(venta.fiado){
+      b.push(...colDerecha('Abono', fmtCOP(venta.abono), ancho));
+      b.push(...escBold(true));
+      b.push(...colDerecha('Saldo pendiente', fmtCOP(venta.saldo), ancho));
+      b.push(...escBold(false));
+    }
+    b.push(...linea('-', ancho));
+    b.push(...escAlign(1));
+    b.push(...txt(venta.fiado ? 'VENTA FIADA - Conserve este recibo\n' : 'Gracias por su compra!\n'));
+    b.push(...txt('Factura Nro '+(venta.numero_factura ? String(venta.numero_factura).padStart(6,'0') : venta.id.slice(-6).toUpperCase())+'\n'));
+    b.push(...escFeed(3));
+    b.push(...escCut());
+    return new Uint8Array(b);
+  }
+
+  function buildCierreEscPos(c){
+    const ancho = 32;
+    let b = [];
+    b.push(...escInit());
+    b.push(...escAlign(1)); b.push(...escBold(true));
+    b.push(...txt('BioFarma\nCIERRE DE CAJA\n'));
+    b.push(...escBold(false));
+    b.push(...escAlign(0));
+    const fecha = new Date(c.fecha);
+    b.push(...linea('-', ancho));
+    b.push(...txt('Fecha: '+fecha.toLocaleDateString('es-CO')+' '+fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})+'\n'));
+    b.push(...txt('Responsable: '+c.responsable+'\n'));
+    b.push(...linea('-', ancho));
+    b.push(...colDerecha('Ventas del dia', String(c.cantidad_ventas), ancho));
+    b.push(...colDerecha('Total vendido', fmtCOP(c.total_vendido), ancho));
+    b.push(...colDerecha('Pendiente (fiado)', fmtCOP(c.total_pendiente), ancho));
+    b.push(...linea('-', ancho));
+    b.push(...escBold(true));
+    b.push(...colDerecha('TOTAL EN CAJA', fmtCOP(c.total_cobrado), ancho));
+    b.push(...escBold(false));
+    b.push(...linea('-', ancho));
+    b.push(...txt('Quien queda debiendo:\n'));
+    if(c.deudores && c.deudores.length){
+      c.deudores.forEach(d=>{ b.push(...colDerecha(d.cliente.slice(0,20), fmtCOP(d.saldo), ancho)); });
+    } else {
+      b.push(...txt('Nadie quedo debiendo.\n'));
+    }
+    if(c.notas){ b.push(...linea('-', ancho)); b.push(...txt('Notas: '+c.notas+'\n')); }
+    b.push(...escFeed(3));
+    b.push(...escCut());
+    return new Uint8Array(b);
+  }
+
+  function renderBtStatus(){
+    const el = document.getElementById('btPrinterStatus');
+    if(!el) return;
+    if(!bluetoothSoportado()){
+      el.innerHTML = '⚪ Este navegador no soporta Bluetooth directo (usa Chrome).';
+    } else if(btCharacteristic){
+      el.innerHTML = '🟢 Conectada: ' + escapeHtml(btDevice.name||'dispositivo') + ' — <a href="#" id="btDisconnectLink" style="color:var(--rojo);">desconectar</a>';
+      const link = document.getElementById('btDisconnectLink');
+      if(link) link.addEventListener('click', (e)=>{ e.preventDefault(); disconnectBluetoothPrinter(); });
+    } else {
+      el.innerHTML = '⚪ Sin conectar — los recibos se imprimirán con el diálogo normal del navegador.';
+    }
+  }
+
+  async function printRecibo(venta){
+    if(btCharacteristic){
+      try{ await sendBytesToBluetoothPrinter(buildReceiptEscPos(venta)); toast('ok','Recibo enviado a la impresora Bluetooth.'); return; }
+      catch(e){ toast('err','Falló la impresión Bluetooth, se abrirá el diálogo normal.'); }
+    }
+    const el = document.getElementById('reciboPrint');
+    const fecha = new Date(venta.fecha);
+    const fechaStr = fecha.toLocaleDateString('es-CO') + ' ' + fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    const rows = venta.items.map(i=> `<tr><td colspan="2">${escapeHtml(i.nombre)}</td></tr><tr><td>${i.cantidad} x ${fmtCOP(i.precio_unitario)}</td><td style="text-align:right;">${fmtCOP(i.subtotal)}</td></tr>`).join('');
+    el.innerHTML = `
+      <h2>BioFarma</h2>
+      <div class="rc-center">${escapeHtml(STATE.config.address||'Pitalito, Huila')}<br>Tel: ${escapeHtml(STATE.config.phone||'')}</div>
+      <hr>
+      <div>Fecha: ${fechaStr}</div>
+      <div>Cliente: ${escapeHtml(venta.cliente)}</div>
+      <div>Atendido por: ${escapeHtml(venta.responsable)}</div>
+      <hr>
+      <table>${rows}</table>
+      <hr>
+      <table>
+        <tr><td class="rc-tot">TOTAL</td><td class="rc-tot" style="text-align:right;">${fmtCOP(venta.total)}</td></tr>
+        ${venta.fiado ? `<tr><td>Abono</td><td style="text-align:right;">${fmtCOP(venta.abono)}</td></tr><tr><td><b>Saldo pendiente</b></td><td style="text-align:right;"><b>${fmtCOP(venta.saldo)}</b></td></tr>` : ''}
+      </table>
+      <hr>
+      <div class="rc-center">${venta.fiado ? 'VENTA FIADA — Conserve este recibo' : '¡Gracias por su compra!'}</div>
+      <div class="rc-center">Factura Nº ${venta.numero_factura ? String(venta.numero_factura).padStart(6,'0') : venta.id.slice(-6).toUpperCase()}</div>
+    `;
+    setTimeout(()=> window.print(), 150);
+  }
+
+  /* ============ CIERRE DE CAJA DEL DÍA ============ */
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+  function esDeHoy(fechaIso){ return (fechaIso||'').slice(0,10) === todayStr(); }
+
+  // Ventas del día que aún no hayan sido incluidas en un cierre ya guardado.
+  function ventasDelDiaSinCerrar(){
+    const yaEnCierres = new Set();
+    STATE.cierres.filter(c => c.fecha_dia === todayStr()).forEach(c => (c.venta_ids||[]).forEach(id => yaEnCierres.add(id)));
+    return STATE.ventas.filter(v => esDeHoy(v.fecha) && !yaEnCierres.has(v.id));
+  }
+
+  function calcularResumenCierre(ventasList){
+    const totalVendido = ventasList.reduce((s,v)=>s+Number(v.total||0),0);
+    const totalPendiente = ventasList.reduce((s,v)=>s + (v.fiado ? Number(v.saldo||0) : 0), 0);
+    const totalCobrado = totalVendido - totalPendiente;
+    const deudores = ventasList.filter(v => v.fiado && Number(v.saldo||0) > 0);
+    return {
+      cantidadVentas: ventasList.length,
+      totalVendido, totalPendiente, totalCobrado, deudores
+    };
+  }
+
+  function renderCierreResumenLive(){
+    const el = document.getElementById('cierreResumenLive');
+    const fechaEl = document.getElementById('cierreFechaTexto');
+    if(!el) return;
+    const ventasHoy = ventasDelDiaSinCerrar();
+    const r = calcularResumenCierre(ventasHoy);
+    if(fechaEl) fechaEl.textContent = 'Resumen de ventas de hoy (' + new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'}) + ') sin cerrar todavía';
+    el.innerHTML = `
+      <div class="cierre-mini"><div class="cm-n">${r.cantidadVentas}</div><div class="cm-l">Ventas registradas</div></div>
+      <div class="cierre-mini"><div class="cm-n">${fmtCOP(r.totalVendido)}</div><div class="cm-l">Total vendido</div></div>
+      <div class="cierre-mini"><div class="cm-n">${fmtCOP(r.totalPendiente)}</div><div class="cm-l">Pendiente por cobrar (fiado)</div></div>
+      <div class="cierre-mini cierre-final"><div class="cm-n">${fmtCOP(r.totalCobrado)}</div><div class="cm-l">Total en caja (vendido − pendiente)</div></div>
+    `;
+    const btn = document.getElementById('abrirCierreBtn');
+    if(btn) btn.disabled = !ventasHoy.length;
+  }
+
+  function buildCierreDetailHTML(ventasList, r){
+    const filas = ventasList.map(v=>{
+      const estado = (v.fiado && v.saldo>0) ? 'debe' : 'pagado';
+      return `<div class="venta-row" style="box-shadow:none; border:1px solid var(--borde);">
+        <div class="vr-info">
+          <div class="vr-cliente">${escapeHtml(v.cliente)}</div>
+          <div class="vr-meta">${new Date(v.fecha).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})} · ${escapeHtml(v.responsable||'—')} · ${v.items.length} producto(s)</div>
+        </div>
+        <div class="vr-total">${fmtCOP(v.total)}</div>
+        <span class="vr-estado ${estado}">${estado==='debe' ? 'Debe '+fmtCOP(v.saldo) : 'Pagado'}</span>
+      </div>`;
+    }).join('') || '<p style="font-size:13px; color:var(--texto-suave);">No hay ventas registradas hoy.</p>';
+
+    const deudas = r.deudores.length
+      ? r.deudores.map(v => `<div class="deuda-row"><span>${escapeHtml(v.cliente)} <span style="color:var(--texto-suave);">(${escapeHtml(v.responsable||'—')})</span></span><b style="color:var(--rojo);">${fmtCOP(v.saldo)}</b></div>`).join('')
+      : '<p style="font-size:13px; color:var(--texto-suave);">Nadie quedó debiendo en estas ventas. 🎉</p>';
+
+    return `
+      <div class="detail-grid" style="margin-bottom:20px;">
+        <div class="detail-item"><span>Ventas del día</span><b>${r.cantidadVentas}</b></div>
+        <div class="detail-item"><span>Total vendido</span><b>${fmtCOP(r.totalVendido)}</b></div>
+        <div class="detail-item"><span>Total pendiente (fiado)</span><b style="color:var(--rojo);">${fmtCOP(r.totalPendiente)}</b></div>
+        <div class="detail-item"><span>Total en caja</span><b style="color:var(--verde-oscuro);">${fmtCOP(r.totalCobrado)}</b></div>
+      </div>
+      <h4 style="font-size:14.5px; color:var(--azul-oscuro); margin-bottom:10px;">🧾 Ventas del día</h4>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">${filas}</div>
+      <h4 style="font-size:14.5px; color:var(--rojo); margin-bottom:6px;">⚠️ Quién queda debiendo</h4>
+      <div style="background:var(--rojo-fondo); border-radius:12px; padding:4px 14px;">${deudas}</div>
+    `;
+  }
+
+  document.getElementById('abrirCierreBtn').addEventListener('click', ()=>{
+    if(!isAdmin && !isCajero){ sfx.error(); toast('err','Debes iniciar sesión para cerrar caja.'); return; }
+    sfx.open();
+    const ventasHoy = ventasDelDiaSinCerrar();
+    if(!ventasHoy.length){ sfx.error(); toast('err','No hay ventas de hoy para cerrar.'); return; }
+    const r = calcularResumenCierre(ventasHoy);
+    document.getElementById('cierreModalTitle').textContent = '🔒 Confirmar cierre de caja — ' + new Date().toLocaleDateString('es-CO');
+    document.getElementById('cierreModalBody').innerHTML = buildCierreDetailHTML(ventasHoy, r) + `
+      <div class="field" style="margin-top:8px;"><label>Responsable de este cierre *</label><input type="text" id="cierreResponsable" placeholder="Nombre de quien cierra la caja"></div>
+      <div class="field"><label>Notas del cierre (opcional)</label><textarea id="cierreNotas" placeholder="Novedades, faltantes, observaciones…"></textarea></div>
+    `;
+    document.getElementById('cierreModalFoot').innerHTML = `
+      <button class="btn btn-ghost" data-close="overlayCierre">Cancelar</button>
+      <button class="btn btn-green" id="confirmarCierreBtn">Confirmar y guardar cierre</button>
+    `;
+    document.getElementById('confirmarCierreBtn').addEventListener('click', ()=> confirmarCierre(ventasHoy, r));
+    document.getElementById('cierreModalFoot').querySelectorAll('[data-close]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); closeOverlay('overlayCierre'); }));
+    openOverlay('overlayCierre');
+  });
+
+  async function confirmarCierre(ventasHoy, r){
+    const responsable = document.getElementById('cierreResponsable').value.trim();
+    if(!responsable){ sfx.error(); toast('err','Escribe el nombre del responsable del cierre.'); document.getElementById('cierreResponsable').focus(); return; }
+    const notas = document.getElementById('cierreNotas').value.trim();
+    const cierre = {
+      id: uid(),
+      fecha: new Date().toISOString(),
+      fecha_dia: todayStr(),
+      responsable,
+      cantidad_ventas: r.cantidadVentas,
+      total_vendido: r.totalVendido,
+      total_pendiente: r.totalPendiente,
+      total_cobrado: r.totalCobrado,
+      venta_ids: ventasHoy.map(v=>v.id),
+      deudores: r.deudores.map(v=>({cliente:v.cliente, responsable:v.responsable, saldo:v.saldo, venta_id:v.id})),
+      notas
+    };
+    try{
+      STATE.cierres.unshift(cierre);
+      await dbSaveCierre(cierre);
+      sfx.success();
+      toast('ok','Cierre de caja guardado. Total en caja: '+fmtCOP(r.totalCobrado));
+      closeOverlay('overlayCierre');
+      printCierre(cierre);
+      renderCierreResumenLive();
+      renderCierresList();
+    }catch(e){ STATE.cierres = STATE.cierres.filter(c=>c.id!==cierre.id); }
+  }
+
+  async function printCierre(c){
+    if(btCharacteristic){
+      try{ await sendBytesToBluetoothPrinter(buildCierreEscPos(c)); toast('ok','Cierre enviado a la impresora Bluetooth.'); return; }
+      catch(e){ toast('err','Falló la impresión Bluetooth, se abrirá el diálogo normal.'); }
+    }
+    const el = document.getElementById('reciboPrint');
+    const fecha = new Date(c.fecha);
+    const deudasRows = c.deudores.length
+      ? c.deudores.map(d=>`<tr><td>${escapeHtml(d.cliente)}</td><td style="text-align:right;">${fmtCOP(d.saldo)}</td></tr>`).join('')
+      : '<tr><td colspan="2">Nadie quedó debiendo.</td></tr>';
+    el.innerHTML = `
+      <h2>BioFarma</h2>
+      <div class="rc-center">CIERRE DE CAJA</div>
+      <hr>
+      <div>Fecha: ${fecha.toLocaleDateString('es-CO')} ${fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}</div>
+      <div>Responsable: ${escapeHtml(c.responsable)}</div>
+      <hr>
+      <table>
+        <tr><td>Ventas del día</td><td style="text-align:right;">${c.cantidad_ventas}</td></tr>
+        <tr><td>Total vendido</td><td style="text-align:right;">${fmtCOP(c.total_vendido)}</td></tr>
+        <tr><td>Pendiente (fiado)</td><td style="text-align:right;">${fmtCOP(c.total_pendiente)}</td></tr>
+      </table>
+      <hr>
+      <table><tr><td class="rc-tot">TOTAL EN CAJA</td><td class="rc-tot" style="text-align:right;">${fmtCOP(c.total_cobrado)}</td></tr></table>
+      <hr>
+      <div class="rc-center">Quién queda debiendo:</div>
+      <table>${deudasRows}</table>
+      ${c.notas ? '<hr><div>Notas: '+escapeHtml(c.notas)+'</div>' : ''}
+    `;
+    setTimeout(()=> window.print(), 150);
+  }
+
+  function renderCierresList(){
+    const list = document.getElementById('cierresList');
+    if(!list) return;
+    const cierres = [...STATE.cierres].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+    if(!cierres.length){ list.innerHTML = '<div class="pos-empty">Todavía no se ha guardado ningún cierre de caja.</div>'; return; }
+    list.innerHTML = cierres.map(c=>{
+      const fecha = new Date(c.fecha);
+      return `<div class="venta-row" data-cierre="${c.id}">
+        <div class="vr-info">
+          <div class="vr-cliente">${fecha.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          <div class="vr-meta">Cerrado por ${escapeHtml(c.responsable)} · ${c.cantidad_ventas} venta(s)${c.total_pendiente>0 ? ' · '+fmtCOP(c.total_pendiente)+' pendiente' : ''}</div>
+        </div>
+        <div class="vr-total">${fmtCOP(c.total_cobrado)}</div>
+        <span class="vr-estado ${c.total_pendiente>0?'debe':'pagado'}">${c.total_pendiente>0 ? 'Con saldos' : 'Todo cobrado'}</span>
+        <div class="vr-actions">
+          <button class="act-view" data-cierre-ver="${c.id}" title="Ver detalle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="act-view" data-cierre-print="${c.id}" title="Reimprimir cierre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-cierre-print]').forEach(b=> b.addEventListener('click', ()=>{ const c=STATE.cierres.find(x=>x.id===b.getAttribute('data-cierre-print')); if(c){ sfx.click(); printCierre(c); } }));
+    list.querySelectorAll('[data-cierre-ver]').forEach(b=> b.addEventListener('click', ()=>{
+      const c = STATE.cierres.find(x=>x.id===b.getAttribute('data-cierre-ver'));
+      if(!c) return;
+      sfx.click();
+      const ventasDeEseCierre = STATE.ventas.filter(v => (c.venta_ids||[]).includes(v.id));
+      const r = {cantidadVentas:c.cantidad_ventas, totalVendido:c.total_vendido, totalPendiente:c.total_pendiente, totalCobrado:c.total_cobrado, deudores: ventasDeEseCierre.filter(v=>v.fiado && v.saldo>0)};
+      document.getElementById('cierreModalTitle').textContent = '🔒 Cierre de caja — ' + new Date(c.fecha).toLocaleDateString('es-CO');
+      document.getElementById('cierreModalBody').innerHTML = buildCierreDetailHTML(ventasDeEseCierre, r) + (c.notas ? `<div class="field" style="margin-top:10px;"><label>Notas del cierre</label><p style="font-size:13px;">${escapeHtml(c.notas)}</p></div>` : '');
+      document.getElementById('cierreModalFoot').innerHTML = `<button class="btn btn-ghost" data-close="overlayCierre">Cerrar</button>`;
+      document.getElementById('cierreModalFoot').querySelectorAll('[data-close]').forEach(b=> b.addEventListener('click', ()=>{ sfx.click(); closeOverlay('overlayCierre'); }));
+      openOverlay('overlayCierre');
+    }));
+  }
+
+  function renderVentasList(){
+    const list = document.getElementById('ventasList');
+    if(!list) return;
+    const q = (document.getElementById('ventasSearch').value||'').toLowerCase().trim();
+    const fe = document.getElementById('ventasFilterEstado').value||'';
+    let ventas = [...STATE.ventas].sort((a,b)=> new Date(b.fecha)-new Date(a.fecha));
+    ventas = ventas.filter(v=>{
+      const matchQ = !q || (v.cliente||'').toLowerCase().includes(q) || (v.responsable||'').toLowerCase().includes(q);
+      const estado = (v.fiado && v.saldo>0) ? 'debe' : 'pagado';
+      const matchE = !fe || fe===estado;
+      return matchQ && matchE;
+    });
+    if(!ventas.length){ list.innerHTML = '<div class="pos-empty">No hay ventas registradas todavía.</div>'; return; }
+    list.innerHTML = ventas.map(v=>{
+      const estado = (v.fiado && v.saldo>0) ? 'debe' : 'pagado';
+      const fecha = new Date(v.fecha);
+      return `<div class="venta-row" data-venta="${v.id}">
+        <div class="vr-info">
+          <div class="vr-cliente">${v.numero_factura ? '#'+String(v.numero_factura).padStart(4,'0')+' · ' : ''}${escapeHtml(v.cliente)}</div>
+          <div class="vr-meta">${fecha.toLocaleDateString('es-CO')} · ${escapeHtml(v.responsable||'—')} · ${v.items.length} producto(s)</div>
+        </div>
+        <div class="vr-total">${fmtCOP(v.total)}</div>
+        <span class="vr-estado ${estado}">${estado==='debe' ? 'Debe '+fmtCOP(v.saldo) : 'Pagado'}</span>
+        <div class="vr-actions">
+          <button class="act-view" data-venta-print="${v.id}" title="Reimprimir recibo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+          ${((isAdmin||isCajero) && estado==='debe') ? `<button class="act-view" data-venta-abono="${v.id}" title="Registrar abono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></button>` : ''}
+          ${((isAdmin||isCajero) && estado==='debe') ? `<button class="act-edit" data-venta-pagar="${v.id}" title="Marcar como pagada en su totalidad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>` : ''}
+        </div>
+        ${(v.pagos && v.pagos.length) ? `<div style="flex-basis:100%; font-size:11.5px; color:var(--texto-suave); margin-top:2px;">Abonos: ${v.pagos.map(pg=>fmtCOP(pg.monto)+' ('+escapeHtml(pg.responsable||'—')+', '+new Date(pg.fecha).toLocaleDateString('es-CO')+')').join(' · ')}</div>` : ''}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-venta-print]').forEach(b=> b.addEventListener('click', ()=>{ const v=STATE.ventas.find(x=>x.id===b.getAttribute('data-venta-print')); if(v){ sfx.click(); printRecibo(v); } }));
+    list.querySelectorAll('[data-venta-pagar]').forEach(b=> b.addEventListener('click', async ()=>{
+      const v = STATE.ventas.find(x=>x.id===b.getAttribute('data-venta-pagar'));
+      if(!v) return;
+      if(!confirm('¿Marcar la venta de '+v.cliente+' como pagada en su totalidad?')) return;
+      const responsable = (isAdmin||isCajero) ? (prompt('¿Quién recibe este pago? (nombre del responsable)')||'').trim() : '';
+      if(!responsable){ toast('err','Debes indicar el responsable que recibe el pago.'); return; }
+      const restante = Math.max(0, v.saldo);
+      if(restante>0){ v.pagos = v.pagos || []; v.pagos.push({monto:restante, fecha:new Date().toISOString(), responsable}); }
+      v.abono = v.total; v.saldo = 0; v.pagado = true;
+      try{ await dbUpdateVenta(v); sfx.success(); toast('ok','Venta marcada como pagada.'); renderVentasList(); }catch(e){}
+    }));
+    list.querySelectorAll('[data-venta-abono]').forEach(b=> b.addEventListener('click', async ()=>{
+      const v = STATE.ventas.find(x=>x.id===b.getAttribute('data-venta-abono'));
+      if(!v) return;
+      const montoStr = prompt('¿Cuánto abona el cliente? (saldo pendiente: '+fmtCOP(v.saldo)+')');
+      if(montoStr===null) return;
+      const monto = Number(montoStr);
+      if(!monto || monto<=0){ sfx.error(); toast('err','Escribe un monto válido mayor a cero.'); return; }
+      if(monto > v.saldo){ sfx.error(); toast('err','El abono no puede ser mayor que el saldo pendiente.'); return; }
+      const responsable = (prompt('¿Quién recibe este abono? (nombre del responsable)')||'').trim();
+      if(!responsable){ sfx.error(); toast('err','Debes indicar el responsable que recibe el abono.'); return; }
+      v.pagos = v.pagos || [];
+      v.pagos.push({monto, fecha:new Date().toISOString(), responsable});
+      v.abono = (Number(v.abono)||0) + monto;
+      v.saldo = Math.max(0, v.total - v.abono);
+      v.pagado = v.saldo <= 0;
+      try{ await dbUpdateVenta(v); sfx.success(); toast('ok','Abono registrado.'); renderVentasList(); }catch(e){}
+    }));
+  }
+  document.getElementById('ventasSearch').addEventListener('input', renderVentasList);
+  document.getElementById('ventasFilterEstado').addEventListener('change', ()=>{ sfx.toggle(); renderVentasList(); });
+
+  /* ============ FILTROS ============ */
+  document.getElementById('searchInput').addEventListener('input', renderGrid);
+  document.getElementById('filterCategoria').addEventListener('change', ()=>{ sfx.toggle(); renderGrid(); });
+  document.getElementById('filterEstado').addEventListener('change', ()=>{ sfx.toggle(); renderGrid(); });
+
+  /* ============ SILENCIAR SONIDOS ============ */
+  document.getElementById('muteBtn').addEventListener('click', ()=>{
+    muted = !muted;
+    document.getElementById('muteIcon').innerHTML = muted
+      ? '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>'
+      : '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
+    if(!muted) sfx.toggle();
+  });
+
+  /* ============ INIT ============ */
+  loadData();
+
+  /* Botones genéricos con sonido de click */
+  document.body.addEventListener('click', (e)=>{
+    const t = e.target.closest('.icon-btn, .btn');
+    if(t && !t.dataset.noSound){ /* la mayoría ya llaman sfx en su propio handler */ }
+  });
+})();
+</script>
+</body>
+</html>
