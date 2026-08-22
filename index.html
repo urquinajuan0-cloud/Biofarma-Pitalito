@@ -1176,7 +1176,7 @@
 
   function sanitizeProducto(p){
     const out = Object.assign({}, p);
-    ['fecha_vencimiento','fecha_ingreso','ultima_actualizacion'].forEach(f=>{ if(out[f]==='') out[f]=null; });
+    ['fecha_vencimiento','fecha_ingreso','ultima_actualizacion','invima_vencimiento'].forEach(f=>{ if(out[f]==='') out[f]=null; });
     ['cantidad_minima','cantidad_maxima'].forEach(f=>{ if(out[f]===''||out[f]===undefined) out[f]=null; });
     return out;
   }
@@ -1274,7 +1274,8 @@
       STATE.productos = prodRes.data;
     } else {
       STATE.productos = seedProducts();
-      await supa.from('productos').upsert(STATE.productos.map(sanitizeProducto));
+      const seedRes = await supa.from('productos').upsert(STATE.productos.map(sanitizeProducto));
+      if(seedRes.error) toast('err','No se pudieron guardar los productos de ejemplo en Supabase: '+seedRes.error.message);
     }
   }
 
