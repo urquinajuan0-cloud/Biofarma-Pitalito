@@ -115,6 +115,12 @@
     padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
   }
   .cajero-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--azul); box-shadow:0 0 0 3px rgba(21,101,216,0.25); animation:pulseDot 1.8s infinite;}
+  .jefe-pill{
+    display:flex; align-items:center; gap:8px;
+    background:var(--ambar-fondo); color:#8a5a00;
+    padding:7px 14px; border-radius:999px; font-size:13px; font-weight:700;
+  }
+  .jefe-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--ambar); box-shadow:0 0 0 3px rgba(242,169,59,0.3); animation:pulseDot 1.8s infinite;}
   .icon-btn{
     width:38px; height:38px; border-radius:10px;
     display:flex; align-items:center; justify-content:center;
@@ -426,6 +432,24 @@
   .cierre-final .cm-l{color:var(--texto-suave) !important;}
   .deuda-row{display:flex; justify-content:space-between; padding:8px 0; border-top:1px dashed var(--borde); font-size:13px;}
   .deuda-row:first-of-type{border-top:none;}
+  .fc-item-row{
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    background:var(--fondo); border:1.5px solid var(--borde); border-radius:12px; padding:10px 12px;
+  }
+  .fc-item-row input[type="text"]{flex:2; min-width:140px;}
+  .fc-item-row input[type="number"]{flex:1; min-width:80px;}
+  .fc-item-row input{padding:8px 10px; border-radius:8px; border:1.5px solid var(--borde); font-family:inherit; font-size:12.5px; background:white;}
+  .fc-item-row .fc-remove{width:28px; height:28px; border-radius:8px; background:var(--rojo-fondo); color:var(--rojo); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .fc-item-row .fc-remove svg{width:13px; height:13px;}
+  .quick-range-btn{padding:8px 16px; border-radius:999px; font-size:12.5px; font-weight:600; background:var(--azul-suave); color:var(--azul-oscuro); transition:background .2s;}
+  .quick-range-btn:hover{background:#d7e9ff;}
+  .quick-range-btn.active{background:var(--azul); color:white;}
+  .ganancia-bar-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px dashed var(--borde);}
+  .ganancia-bar-row:first-of-type{border-top:none;}
+  .ganancia-bar-row .gb-label{width:110px; flex-shrink:0; font-size:12px; color:var(--texto-suave); font-weight:600;}
+  .ganancia-bar-row .gb-track{flex:1; height:20px; background:var(--fondo); border-radius:6px; overflow:hidden;}
+  .ganancia-bar-row .gb-fill{height:100%; background:linear-gradient(90deg, var(--verde), var(--verde-oscuro)); border-radius:6px; transition:width .4s ease;}
+  .ganancia-bar-row .gb-val{width:100px; flex-shrink:0; text-align:right; font-family:'Space Mono',monospace; font-size:12px; font-weight:700; color:var(--verde-oscuro);}
 
   /* Recibo — oculto en pantalla, solo visible al imprimir */
   #reciboPrint{display:none;}
@@ -577,6 +601,7 @@
     <button class="tab active" data-view="inicio">Inicio</button>
     <button class="tab" data-view="inventario">Inventario</button>
     <button class="tab" data-view="ventas">Ventas</button>
+    <button class="tab" data-view="compras" id="tabCompras" style="display:none;">Compras</button>
   </nav>
 
   <div class="header-right">
@@ -586,9 +611,15 @@
     <div class="admin-pill" id="adminPill" style="display:none;">
       <span class="dot"></span> Administrador
     </div>
+    <div class="jefe-pill" id="jefePill" style="display:none;">
+      <span class="dot"></span> 👑 Jefe
+    </div>
     <div class="cajero-pill" id="cajeroPill" style="display:none;">
       <span class="dot"></span> Vendedor
     </div>
+    <button class="icon-btn" id="jefeUnlockBtn" style="display:none;" title="Activar Modo Jefe (ver compras y ganancias)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l5 3 5-7 5 7 5-3-2 11H4L2 9z"/></svg>
+    </button>
     <button class="icon-btn" id="cajeroLoginBtn" title="Acceder para vender">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
     </button>
@@ -806,6 +837,47 @@
       <div class="ventas-list" id="ventasList"></div>
     </div>
   </section>
+
+  <!-- ================= COMPRAS (solo Modo Jefe) ================= -->
+  <section class="view" id="view-compras">
+    <div class="inv-header">
+      <div>
+        <h1>Compras a proveedores</h1>
+        <p>Registra las facturas que llegan, controla pagos pendientes y revisa cuánto se gana</p>
+      </div>
+      <button class="btn btn-green" id="addFacturaBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Registrar factura de proveedor
+      </button>
+    </div>
+
+    <div id="pagosBanner"></div>
+
+    <div class="panel" style="margin-bottom:24px;">
+      <h3>💵 Facturas de proveedores</h3>
+      <div class="sub">Historial de pedidos recibidos, con su estado de pago</div>
+      <div class="toolbar" style="margin-top:14px; box-shadow:none; border:1.5px solid var(--borde);">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="facturasSearch" placeholder="Buscar por proveedor o número de factura…">
+        </div>
+        <select class="filter" id="facturasFilterEstado">
+          <option value="">Todas</option>
+          <option value="pendiente">Pendientes de pago</option>
+          <option value="pagada">Pagadas</option>
+        </select>
+      </div>
+      <div class="ventas-list" id="facturasList" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="panel">
+      <h3>📊 Reporte de ganancias</h3>
+      <div class="sub">Cuánto se gana (venta menos costo) en el periodo que elijas — solo cuenta ventas hechas desde que se activó esta función</div>
+      <div id="gananciasControles" style="display:flex; gap:8px; flex-wrap:wrap; margin:16px 0;"></div>
+      <div id="gananciasResumen" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px;"></div>
+      <div id="gananciasDesglose"></div>
+    </div>
+  </section>
 </main>
 
 <!-- Plantilla de recibo, invisible en pantalla, se imprime aparte -->
@@ -865,6 +937,30 @@
   </div>
 </div>
 
+<!-- Modal ACCESO JEFE (nivel más alto, encima de administrador) -->
+<div class="overlay" id="overlayLoginJefe">
+  <div class="modal modal-sm" id="loginJefeModal">
+    <div class="modal-head">
+      <h3>👑 Modo Jefe</h3>
+      <button class="close-x" data-close="overlayLoginJefe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--texto-suave); margin-bottom:16px;">Esta contraseña es adicional a la de administrador. Solo con ella se puede ver los precios de compra, las facturas de proveedores y los reportes de ganancia — el resto del personal no tiene acceso a esto.</p>
+      <div class="field">
+        <label>Contraseña de Jefe</label>
+        <input type="password" id="loginJefePassword" placeholder="••••••••">
+      </div>
+      <p id="loginJefeError" style="display:none; color:var(--rojo); font-size:12.5px; font-weight:600;">Contraseña incorrecta. Intenta de nuevo.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlayLoginJefe">Cancelar</button>
+      <button class="btn btn-primary" id="loginJefeSubmit">Activar Modo Jefe</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal CONFIGURACIÓN -->
 <div class="overlay" id="overlaySettings">
   <div class="modal modal-md">
@@ -885,6 +981,8 @@
       <div class="field"><label>Nueva contraseña de administrador</label><input type="password" id="cfgNewPass" placeholder="Dejar en blanco para no cambiar"></div>
       <div class="field"><label>Contraseña de vendedor actual</label><input type="password" id="cfgCurPassVentas" placeholder="Contraseña actual"></div>
       <div class="field"><label>Nueva contraseña de vendedor</label><input type="password" id="cfgNewPassVentas" placeholder="Dejar en blanco para no cambiar"></div>
+      <div class="field" id="fieldCurPassJefe" style="display:none;"><label>Contraseña de Jefe actual</label><input type="password" id="cfgCurPassJefe" placeholder="Contraseña actual"></div>
+      <div class="field" id="fieldNewPassJefe" style="display:none;"><label>Nueva contraseña de Jefe</label><input type="password" id="cfgNewPassJefe" placeholder="Dejar en blanco para no cambiar"></div>
       <div class="form-section-title" style="margin-top:18px;">☁️ Conexión a Supabase (base de datos en la nube)</div>
       <p style="font-size:12px; color:var(--texto-suave); margin-bottom:12px;">Crea un proyecto gratis en supabase.com, ejecuta el script SQL que te compartí y pega aquí la URL del proyecto y la llave "anon public". Sin esto, los datos solo se guardan en este navegador.</p>
       <div class="field"><label>URL del proyecto Supabase</label><input type="text" id="cfgSbUrl" placeholder="https://xxxxx.supabase.co"></div>
@@ -941,7 +1039,7 @@
           <div class="field"><label>Fecha de vencimiento</label><input id="f_fecha_vencimiento" type="date"></div>
 
           <div class="form-section-title">💰 Compra y venta</div>
-          <div class="field"><label>Precio de compra (COP)</label><input id="f_precio_compra" type="number" min="0"></div>
+          <div class="field" id="fieldPrecioCompra"><label>Precio de compra (COP)</label><input id="f_precio_compra" type="number" min="0"></div>
           <div class="field"><label>Precio de venta por unidad (COP)</label><input id="f_precio_venta" type="number" min="0" placeholder="Precio de venta de cada unidad"></div>
           <div class="field"><label>IVA (%)</label><input id="f_iva" type="number" min="0" step="0.1"></div>
           <div class="field"><label>Proveedor</label><input id="f_proveedor" type="text"></div>
@@ -1030,6 +1128,59 @@
   </div>
 </div>
 
+<!-- Modal FACTURA DE PROVEEDOR (solo Modo Jefe) -->
+<div class="overlay" id="overlayFactura">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="facturaModalTitle">💵 Registrar factura de proveedor</h3>
+      <button class="close-x" data-close="overlayFactura">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Proveedor *</label><input type="text" id="fc_proveedor" placeholder="Nombre del proveedor o distribuidora"></div>
+        <div class="field"><label>Número de factura</label><input type="text" id="fc_numero" placeholder="Ej. FV-00123"></div>
+        <div class="field"><label>Fecha de la compra *</label><input type="date" id="fc_fecha_compra"></div>
+        <div class="field"><label>Fecha límite de pago (para el recordatorio)</label><input type="date" id="fc_fecha_pago"></div>
+        <div class="field">
+          <label>Descuento total</label>
+          <div style="display:flex; gap:6px;">
+            <input type="number" min="0" id="fc_descuento" value="0" style="flex:1;">
+            <select id="fc_descuento_modo" style="width:90px; flex-shrink:0;">
+              <option value="cop">$ COP</option>
+              <option value="pct">%</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Responsable de este registro *</label><input type="text" id="fc_responsable" placeholder="Quien recibe el pedido"></div>
+      </div>
+      <div class="form-section-title" style="margin-top:4px;">📦 Productos de esta factura</div>
+      <div class="scan-bar" style="margin:0 0 14px; padding:12px 16px;">
+        <div class="scan-icon-wrap" style="width:36px; height:36px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16"/><line x1="19" y1="8" x2="19" y2="16"/></svg>
+        </div>
+        <div class="scan-mid" style="margin:0;">
+          <input type="text" id="fcScanInput" autocomplete="off" placeholder="Escanea el código o escríbelo y presiona Enter — si es nuevo, se agrega una fila lista para llenar…">
+        </div>
+      </div>
+      <p style="font-size:12px; color:var(--texto-suave); margin-bottom:10px;">También puedes escribir el nombre directamente en una fila si no tienes el código a la mano.</p>
+      <div id="fcItemsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
+      <button type="button" class="btn btn-ghost" id="fcAddItemBtn" style="margin-bottom:16px;">+ Agregar producto manualmente</button>
+      <datalist id="fc_dl_productos"></datalist>
+      <div class="pos-summary" style="border-top:1.5px dashed var(--borde); padding-top:14px;">
+        <div class="pos-summary-row"><span>Subtotal productos</span><span id="fcSubtotal">$0</span></div>
+        <div class="pos-summary-row"><span id="fcDescuentoLabel">Descuento</span><span id="fcDescuentoTxt">-$0</span></div>
+        <div class="pos-summary-row total"><span>Total factura</span><span id="fcTotal">$0</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="overlayFactura">Cancelar</button>
+      <button class="btn btn-green" id="saveFacturaBtn">Guardar factura y actualizar inventario</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -1074,6 +1225,7 @@
     productos: [],
     ventas: [],
     cierres: [],
+    facturasCompra: [],
     config: {
       title: 'Bienvenido a Droguería BioFarma',
       subtitle: 'Gestiona el inventario de medicamentos, controla vencimientos y mantén el stock siempre bajo control, todo en un solo lugar.',
@@ -1081,12 +1233,14 @@
       address: 'Pitalito, Huila',
       password: 'biofarma2025',
       passwordVentas: 'ventas2025',
+      passwordJefe: 'jefe2025',
       supabaseUrl: '',
       supabaseKey: ''
     }
   };
   let isAdmin = false;
   let isCajero = false;
+  let isJefe = false;
   let editingId = null;
   let deletingId = null;
   let supa = null; // cliente de Supabase, null si no está configurado/conectado
@@ -1199,6 +1353,7 @@
         STATE.productos = (parsed.productos && parsed.productos.length) ? parsed.productos : seedProducts();
         STATE.ventas = parsed.ventas || [];
         STATE.cierres = parsed.cierres || [];
+        STATE.facturasCompra = parsed.facturasCompra || [];
         STATE.config = Object.assign({}, STATE.config, parsed.config || {}, {supabaseUrl: STATE.config.supabaseUrl, supabaseKey: STATE.config.supabaseKey});
       } else {
         STATE.productos = seedProducts();
@@ -1237,6 +1392,10 @@
         applyRealtimeChange(STATE.cierres, payload, 'id');
         renderAll();
       })
+      .on('postgres_changes', {event:'*', schema:'public', table:'facturas_compra'}, payload => {
+        applyRealtimeChange(STATE.facturasCompra, payload, 'id');
+        renderAll();
+      })
       .subscribe();
   }
   function applyRealtimeChange(arr, payload, key){
@@ -1250,19 +1409,22 @@
   }
 
   async function loadFromSupabase(){
-    const [prodRes, ventasRes, cfgRes, cierresRes] = await Promise.all([
+    const [prodRes, ventasRes, cfgRes, cierresRes, facturasRes] = await Promise.all([
       supa.from('productos').select('*'),
       supa.from('ventas').select('*').order('fecha', {ascending:false}),
       supa.from('config').select('*').eq('id',1),
-      supa.from('cierres_caja').select('*').order('fecha', {ascending:false})
+      supa.from('cierres_caja').select('*').order('fecha', {ascending:false}),
+      supa.from('facturas_compra').select('*').order('fecha_compra', {ascending:false})
     ]);
     if(prodRes.error) throw prodRes.error;
     if(ventasRes.error) throw ventasRes.error;
     if(cfgRes.error) throw cfgRes.error;
     if(cierresRes.error) throw cierresRes.error;
+    if(facturasRes.error) throw facturasRes.error;
 
     STATE.ventas = ventasRes.data || [];
     STATE.cierres = cierresRes.data || [];
+    STATE.facturasCompra = facturasRes.data || [];
     if(cfgRes.data && cfgRes.data.length){
       STATE.config = Object.assign({}, STATE.config, cfgRes.data[0], {supabaseUrl: STATE.config.supabaseUrl, supabaseKey: STATE.config.supabaseKey});
     } else {
@@ -1281,7 +1443,7 @@
 
   // Copia de respaldo local (siempre se guarda, haya o no Supabase).
   async function persistLocalBlob(){
-    await storageSet(STORAGE_KEY, JSON.stringify({productos: STATE.productos, ventas: STATE.ventas, cierres: STATE.cierres, config: STATE.config}), true);
+    await storageSet(STORAGE_KEY, JSON.stringify({productos: STATE.productos, ventas: STATE.ventas, cierres: STATE.cierres, facturasCompra: STATE.facturasCompra, config: STATE.config}), true);
     if(usingFallback && !fallbackWarned){
       fallbackWarned = true;
       toast('info', 'Modo local: los cambios se guardan solo en este navegador (Supabase no está configurado).');
@@ -1306,6 +1468,14 @@
   }
   async function dbSaveCierre(c){
     if(supa){ const {error} = await supa.from('cierres_caja').insert(c); if(error){ toast('err','Error guardando el cierre en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  async function dbSaveFacturaCompra(f){
+    if(supa){ const {error} = await supa.from('facturas_compra').insert(f); if(error){ toast('err','Error guardando la factura de compra en Supabase: '+error.message); throw error; } }
+    await persistLocalBlob();
+  }
+  async function dbUpdateFacturaCompra(f){
+    if(supa){ const {error} = await supa.from('facturas_compra').update(f).eq('id', f.id); if(error){ toast('err','Error actualizando la factura de compra en Supabase: '+error.message); throw error; } }
     await persistLocalBlob();
   }
   // El historial de auditoría (quién cambió el precio o el stock, y cuándo)
@@ -1408,6 +1578,7 @@
     if(typeof renderPosCart === 'function') renderPosCart();
     if(typeof renderCierreResumenLive === 'function') renderCierreResumenLive();
     if(typeof renderCierresList === 'function') renderCierresList();
+    if(typeof renderComprasView === 'function') renderComprasView();
   }
 
   function renderStats(){
@@ -1573,6 +1744,14 @@
     document.getElementById('cajeroPill').style.display = (isCajero && !isAdmin) ? 'flex' : 'none';
     document.getElementById('cajeroLoginBtn').style.display = loggedIn ? 'none' : 'flex';
     document.getElementById('cajeroLogoutBtn').style.display = (isCajero && !isAdmin) ? 'flex' : 'none';
+    document.getElementById('jefePill').style.display = isJefe ? 'flex' : 'none';
+    document.getElementById('jefeUnlockBtn').style.display = (isAdmin && !isJefe) ? 'flex' : 'none';
+    const tabCompras = document.getElementById('tabCompras');
+    if(tabCompras) tabCompras.style.display = isJefe ? 'inline-flex' : 'none';
+    if(!isJefe){
+      const activeView = document.querySelector('.view.active');
+      if(activeView && activeView.id === 'view-compras') goView('inicio');
+    }
   }
 
   function escapeHtml(str){
@@ -1656,11 +1835,54 @@
 
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
     isAdmin = false;
+    isJefe = false;
     sfx.toggle();
     toast('info', 'Sesión de administrador cerrada.');
     renderAdminUI();
     renderGrid();
   });
+
+  /* ============ MODO JEFE (contraseña adicional, encima de administrador) ============ */
+  function openLoginJefe(){
+    if(!isAdmin){ sfx.error(); toast('err','Primero debes iniciar sesión como administrador.'); return; }
+    document.getElementById('loginJefePassword').value = '';
+    document.getElementById('loginJefeError').style.display = 'none';
+    openOverlay('overlayLoginJefe');
+    setTimeout(()=> document.getElementById('loginJefePassword').focus(), 200);
+  }
+  document.getElementById('jefeUnlockBtn').addEventListener('click', ()=>{ sfx.click(); openLoginJefe(); });
+
+  async function verifyJefePassword(val){
+    if(!val) return false;
+    if(supa){
+      try{
+        const {data, error} = await supa.rpc('check_jefe_password', {check_pass: val});
+        if(error){ toast('err','No se pudo verificar con Supabase: '+error.message); return false; }
+        return data === true;
+      }catch(e){ toast('err','No se pudo verificar con Supabase.'); return false; }
+    }
+    return val === STATE.config.passwordJefe;
+  }
+
+  async function tryLoginJefe(){
+    const val = document.getElementById('loginJefePassword').value;
+    const ok = await verifyJefePassword(val);
+    if(ok){
+      isJefe = true;
+      sfx.success();
+      toast('ok', '👑 Modo Jefe activado.');
+      closeOverlay('overlayLoginJefe');
+      renderAdminUI();
+      renderAll();
+    } else {
+      sfx.error();
+      document.getElementById('loginJefeError').style.display = 'block';
+      const modal = document.getElementById('loginJefeModal');
+      modal.classList.remove('pw-shake'); void modal.offsetWidth; modal.classList.add('pw-shake');
+    }
+  }
+  document.getElementById('loginJefeSubmit').addEventListener('click', tryLoginJefe);
+  document.getElementById('loginJefePassword').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLoginJefe(); });
 
   /* ============ LOGIN VENDEDOR (solo permite vender) ============ */
   function openLoginVentas(){
@@ -1722,6 +1944,10 @@
     document.getElementById('cfgNewPass').value = '';
     document.getElementById('cfgCurPassVentas').value = '';
     document.getElementById('cfgNewPassVentas').value = '';
+    document.getElementById('cfgCurPassJefe').value = '';
+    document.getElementById('cfgNewPassJefe').value = '';
+    document.getElementById('fieldCurPassJefe').style.display = isJefe ? 'block' : 'none';
+    document.getElementById('fieldNewPassJefe').style.display = isJefe ? 'block' : 'none';
     document.getElementById('cfgSbUrl').value = STATE.config.supabaseUrl || '';
     document.getElementById('cfgSbKey').value = STATE.config.supabaseKey || '';
     document.getElementById('sbStatusText').textContent = supa ? '🟢 Conectado a Supabase — los datos se sincronizan entre todos los computadores.' : '⚪ Sin conectar — los datos solo viven en este navegador.';
@@ -1765,6 +1991,22 @@
       } else {
         if(curPassVentas !== STATE.config.passwordVentas){ sfx.error(); toast('err','La contraseña actual de vendedor no es correcta.'); return; }
         STATE.config.passwordVentas = newPassVentas;
+      }
+    }
+    if(isJefe){
+      const curPassJefe = document.getElementById('cfgCurPassJefe').value;
+      const newPassJefe = document.getElementById('cfgNewPassJefe').value.trim();
+      if(newPassJefe){
+        if(!curPassJefe){ sfx.error(); toast('err','Escribe la contraseña actual de Jefe para poder cambiarla.'); return; }
+        if(supa){
+          try{
+            const {data, error} = await supa.rpc('update_jefe_password', {current_pass: curPassJefe, new_pass: newPassJefe});
+            if(error || data !== true){ sfx.error(); toast('err','La contraseña actual de Jefe no es correcta.'); return; }
+          }catch(e){ sfx.error(); toast('err','No se pudo cambiar la contraseña en Supabase.'); return; }
+        } else {
+          if(curPassJefe !== STATE.config.passwordJefe){ sfx.error(); toast('err','La contraseña actual de Jefe no es correcta.'); return; }
+          STATE.config.passwordJefe = newPassJefe;
+        }
       }
     }
 
@@ -1827,6 +2069,7 @@
       document.getElementById('f_responsable').value = lastUsed.responsable;
     }
     openOverlay('overlayForm');
+    document.getElementById('fieldPrecioCompra').style.display = isJefe ? 'block' : 'none';
     setTimeout(()=> document.getElementById('f_nombre').focus(), 250);
   }
   document.getElementById('addProductBtn').addEventListener('click', ()=>{ sfx.click(); openForm(null); });
@@ -1890,7 +2133,8 @@
       ['Laboratorio', p.laboratorio||'—'], ['Categoría', p.categoria], ['Estado', ESTADO_LABEL[est]],
       ['Cantidad disponible', p.cantidad_disponible], ['Cantidad mínima', p.cantidad_minima||'—'], ['Cantidad máxima', p.cantidad_maxima||'—'],
       ['Ubicación', p.ubicacion||'—'], ['Lote', p.lote||'—'], ['Fecha de vencimiento', fmtDate(p.fecha_vencimiento)],
-      ['Precio de compra', fmtCOP(p.precio_compra)], ['Precio de venta (por unidad)', fmtCOP(p.precio_venta)], ['IVA', (p.iva||0)+'%'],
+      ...(isJefe ? [['Precio de compra', fmtCOP(p.precio_compra)]] : []),
+      ['Precio de venta (por unidad)', fmtCOP(p.precio_venta)], ['IVA', (p.iva||0)+'%'],
       ['Proveedor', p.proveedor||'—'],
       ['Registro INVIMA', p.invima||'—'], ['Tipo de registro', p.invima_tipo||'—'], ['Vencimiento registro INVIMA', p.invima_vencimiento ? fmtDate(p.invima_vencimiento) : '—'], ['Requiere fórmula médica', p.requiere_formula||'No'],
       ['Fecha de ingreso', fmtDate(p.fecha_ingreso)], ['Última actualización', fmtDate(p.ultima_actualizacion)],
@@ -1899,12 +2143,16 @@
     document.getElementById('detailGrid').innerHTML = rows.map(r=>`<div class="detail-item"><span>${r[0]}</span><b>${escapeHtml(String(r[1]))}</b></div>`).join('');
     const histBox = document.getElementById('detailHistorial');
     if(histBox){
-      histBox.innerHTML = supa ? '<p style="font-size:12.5px;color:var(--texto-suave);">Cargando historial…</p>' : '<p style="font-size:12.5px;color:var(--texto-suave);">El historial de cambios solo está disponible con Supabase conectado.</p>';
-      if(supa){
-        fetchHistorialProducto(id).then(hist=>{
-          if(!hist || !hist.length){ histBox.innerHTML = '<p style="font-size:12.5px;color:var(--texto-suave);">Sin cambios registrados todavía.</p>'; return; }
-          histBox.innerHTML = hist.map(h=>`<div class="deuda-row"><span>${escapeHtml(h.campo)}: ${escapeHtml(h.valor_anterior)} → <b>${escapeHtml(h.valor_nuevo)}</b> <span style="color:var(--texto-suave);">(${escapeHtml(h.responsable||'—')})</span></span><span style="color:var(--texto-suave); font-size:11.5px;">${new Date(h.fecha).toLocaleDateString('es-CO')}</span></div>`).join('');
-        });
+      if(!isJefe){
+        histBox.innerHTML = '<p style="font-size:12.5px;color:var(--texto-suave);">Solo visible en Modo Jefe.</p>';
+      } else {
+        histBox.innerHTML = supa ? '<p style="font-size:12.5px;color:var(--texto-suave);">Cargando historial…</p>' : '<p style="font-size:12.5px;color:var(--texto-suave);">El historial de cambios solo está disponible con Supabase conectado.</p>';
+        if(supa){
+          fetchHistorialProducto(id).then(hist=>{
+            if(!hist || !hist.length){ histBox.innerHTML = '<p style="font-size:12.5px;color:var(--texto-suave);">Sin cambios registrados todavía.</p>'; return; }
+            histBox.innerHTML = hist.map(h=>`<div class="deuda-row"><span>${escapeHtml(h.campo)}: ${escapeHtml(h.valor_anterior)} → <b>${escapeHtml(h.valor_nuevo)}</b> <span style="color:var(--texto-suave);">(${escapeHtml(h.responsable||'—')})</span></span><span style="color:var(--texto-suave); font-size:11.5px;">${new Date(h.fecha).toLocaleDateString('es-CO')}</span></div>`).join('');
+          });
+        }
       }
     }
     const foot = document.getElementById('detailFoot');
@@ -2358,7 +2606,8 @@
     const abono = fiado ? (Number(document.getElementById('posAbono').value)||0) : 0;
     const items = posCart.map(r=>{
       const mode = r.modos.find(m=>m.key===r.modo)||r.modos[0];
-      return {producto_id:r.productoId, nombre:r.nombre, codigo:r.codigo, modo:mode.label, cantidad:r.cantidad, precio_unitario:mode.price, subtotal:mode.price*r.cantidad, consumo_stock: mode.consumo*r.cantidad};
+      const prod = STATE.productos.find(p=>p.id===r.productoId);
+      return {producto_id:r.productoId, nombre:r.nombre, codigo:r.codigo, modo:mode.label, cantidad:r.cantidad, precio_unitario:mode.price, subtotal:mode.price*r.cantidad, consumo_stock: mode.consumo*r.cantidad, costo_unitario: prod ? (Number(prod.precio_compra)||0) : 0};
     });
     const total = items.reduce((s,i)=>s+i.subtotal,0);
     const nowIso = new Date().toISOString();
@@ -2800,6 +3049,360 @@
     }));
   }
 
+  /* ============ COMPRAS A PROVEEDORES (solo Modo Jefe) ============ */
+  let fcItems = [];
+
+  function renderComprasView(){
+    if(!isJefe) return;
+    renderPagosBanner();
+    renderFacturasList();
+    renderGananciasControles();
+    renderGananciasReport();
+  }
+
+  function diasHasta(fechaStr){
+    if(!fechaStr) return null;
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    return Math.round((new Date(fechaStr+'T00:00:00') - hoy) / 86400000);
+  }
+
+  function renderPagosBanner(){
+    const el = document.getElementById('pagosBanner');
+    if(!el) return;
+    const pendientes = STATE.facturasCompra.filter(f => !f.pagada && f.fecha_pago);
+    const urgentes = pendientes.filter(f => diasHasta(f.fecha_pago) <= 3).sort((a,b)=> diasHasta(a.fecha_pago)-diasHasta(b.fecha_pago));
+    if(!urgentes.length){ el.innerHTML=''; return; }
+    const nombres = urgentes.slice(0,3).map(f=>{
+      const d = diasHasta(f.fecha_pago);
+      const texto = d<0 ? 'vencida hace '+Math.abs(d)+'d' : (d===0 ? 'vence hoy' : 'vence en '+d+'d');
+      return escapeHtml(f.proveedor)+' ('+texto+')';
+    }).join(', ') + (urgentes.length>3 ? ' y '+(urgentes.length-3)+' más' : '');
+    el.innerHTML = `<div class="vence-banner">
+      <div class="vb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div class="vb-text"><b>💰 ${urgentes.length} factura(s) de proveedor por pagar pronto</b><span>${nombres}</span></div>
+    </div>`;
+  }
+
+  function renderFacturasList(){
+    const list = document.getElementById('facturasList');
+    if(!list) return;
+    const q = (document.getElementById('facturasSearch').value||'').toLowerCase().trim();
+    const fe = document.getElementById('facturasFilterEstado').value||'';
+    let facturas = [...STATE.facturasCompra].sort((a,b)=> new Date(b.fecha_compra)-new Date(a.fecha_compra));
+    facturas = facturas.filter(f=>{
+      const matchQ = !q || (f.proveedor||'').toLowerCase().includes(q) || (f.numero_factura||'').toLowerCase().includes(q);
+      const estado = f.pagada ? 'pagada' : 'pendiente';
+      const matchE = !fe || fe===estado;
+      return matchQ && matchE;
+    });
+    if(!facturas.length){ list.innerHTML = '<div class="pos-empty">No hay facturas de proveedores registradas todavía.</div>'; return; }
+    list.innerHTML = facturas.map(f=>{
+      const d = f.fecha_pago ? diasHasta(f.fecha_pago) : null;
+      let recordatorio = '';
+      if(!f.pagada && d!==null){
+        recordatorio = d<0 ? ' · <span style="color:var(--rojo); font-weight:700;">vencida hace '+Math.abs(d)+'d</span>' : (d<=7 ? ' · <span style="color:var(--rojo); font-weight:700;">paga en '+d+'d</span>' : ' · paga en '+d+'d');
+      }
+      return `<div class="venta-row" data-factura="${f.id}">
+        <div class="vr-info">
+          <div class="vr-cliente">${escapeHtml(f.proveedor)}${f.numero_factura ? ' · '+escapeHtml(f.numero_factura) : ''}</div>
+          <div class="vr-meta">${fmtDate(f.fecha_compra)} · ${escapeHtml(f.responsable||'—')} · ${(f.items||[]).length} producto(s)${f.descuento>0 ? ' · desc. '+(f.descuento_porcentaje?f.descuento_porcentaje+'%':fmtCOP(f.descuento)) : ''}${recordatorio}</div>
+        </div>
+        <div class="vr-total">${fmtCOP(f.monto_total)}</div>
+        <span class="vr-estado ${f.pagada?'pagado':'debe'}">${f.pagada ? 'Pagada' : 'Pendiente'}</span>
+        <div class="vr-actions">
+          ${!f.pagada ? `<button class="act-edit" data-factura-pagar="${f.id}" title="Marcar como pagada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-factura-pagar]').forEach(b=> b.addEventListener('click', async ()=>{
+      const f = STATE.facturasCompra.find(x=>x.id===b.getAttribute('data-factura-pagar'));
+      if(!f) return;
+      if(!confirm('¿Marcar la factura de '+f.proveedor+' como pagada?')) return;
+      f.pagada = true; f.fecha_pago_realizado = todayStr();
+      try{ await dbUpdateFacturaCompra(f); sfx.success(); toast('ok','Factura marcada como pagada.'); renderComprasView(); }catch(e){}
+    }));
+  }
+
+  function renderFcItems(){
+    const list = document.getElementById('fcItemsList');
+    list.innerHTML = fcItems.map(it => `
+      <div class="fc-item-row" data-fc-temp="${it.tempId}">
+        <input type="text" placeholder="Código" value="${escapeHtml(it.codigo||'')}" style="flex:0 0 90px;" class="mono" data-fc-codigo="${it.tempId}">
+        <input type="text" placeholder="Nombre del producto…" value="${escapeHtml(it.nombre)}" list="fc_dl_productos" data-fc-nombre="${it.tempId}">
+        <input type="number" min="1" placeholder="Cant." value="${it.cantidad}" data-fc-cantidad="${it.tempId}">
+        <input type="number" min="0" placeholder="Precio compra" value="${it.precio_compra}" data-fc-compra="${it.tempId}">
+        <input type="number" min="0" placeholder="Precio venta" value="${it.precio_venta}" data-fc-venta="${it.tempId}">
+        <button type="button" class="fc-remove" data-fc-remove="${it.tempId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>`).join('') || '<p style="font-size:12.5px; color:var(--texto-suave);">Agrega al menos un producto.</p>';
+
+    list.querySelectorAll('[data-fc-codigo]').forEach(inp=> inp.addEventListener('input', ()=>{ const it=fcItems.find(x=>x.tempId===inp.getAttribute('data-fc-codigo')); if(it) it.codigo = inp.value; }));
+    list.querySelectorAll('[data-fc-nombre]').forEach(inp=> inp.addEventListener('input', ()=>{ const it=fcItems.find(x=>x.tempId===inp.getAttribute('data-fc-nombre')); if(it) it.nombre = inp.value; updateFcTotals(); }));
+    list.querySelectorAll('[data-fc-cantidad]').forEach(inp=> inp.addEventListener('input', ()=>{ const it=fcItems.find(x=>x.tempId===inp.getAttribute('data-fc-cantidad')); if(it) it.cantidad = Number(inp.value)||0; updateFcTotals(); }));
+    list.querySelectorAll('[data-fc-compra]').forEach(inp=> inp.addEventListener('input', ()=>{ const it=fcItems.find(x=>x.tempId===inp.getAttribute('data-fc-compra')); if(it) it.precio_compra = Number(inp.value)||0; updateFcTotals(); }));
+    list.querySelectorAll('[data-fc-venta]').forEach(inp=> inp.addEventListener('input', ()=>{ const it=fcItems.find(x=>x.tempId===inp.getAttribute('data-fc-venta')); if(it) it.precio_venta = Number(inp.value)||0; }));
+    list.querySelectorAll('[data-fc-remove]').forEach(b=> b.addEventListener('click', ()=>{ fcItems = fcItems.filter(x=>x.tempId!==b.getAttribute('data-fc-remove')); renderFcItems(); updateFcTotals(); }));
+  }
+
+  // Devuelve {montoDescuento, porcentaje} calculado según el modo elegido ($ o %).
+  function calcularDescuentoFactura(subtotal){
+    const valor = Number(document.getElementById('fc_descuento').value)||0;
+    const modo = document.getElementById('fc_descuento_modo').value;
+    if(modo === 'pct'){
+      const pct = Math.min(100, Math.max(0, valor));
+      return {monto: Math.round(subtotal * pct/100), porcentaje: pct};
+    }
+    return {monto: valor, porcentaje: subtotal>0 ? Math.round(valor/subtotal*1000)/10 : 0};
+  }
+
+  function updateFcTotals(){
+    const subtotal = fcItems.reduce((s,it)=> s + (it.cantidad*it.precio_compra), 0);
+    const {monto, porcentaje} = calcularDescuentoFactura(subtotal);
+    document.getElementById('fcSubtotal').textContent = fmtCOP(subtotal);
+    document.getElementById('fcDescuentoLabel').textContent = 'Descuento' + (document.getElementById('fc_descuento_modo').value==='pct' ? ' ('+Number(document.getElementById('fc_descuento').value||0)+'%)' : (porcentaje>0 ? ' (~'+porcentaje+'%)' : ''));
+    document.getElementById('fcDescuentoTxt').textContent = '-'+fmtCOP(monto);
+    document.getElementById('fcTotal').textContent = fmtCOP(Math.max(0, subtotal-monto));
+  }
+
+  document.getElementById('fcAddItemBtn').addEventListener('click', ()=>{
+    fcItems.push({tempId:uid(), codigo:'', nombre:'', cantidad:1, precio_compra:0, precio_venta:0});
+    renderFcItems(); updateFcTotals();
+    setTimeout(()=>{ const rows=document.querySelectorAll('#fcItemsList [data-fc-nombre]'); if(rows.length) rows[rows.length-1].focus(); }, 50);
+  });
+  document.getElementById('fc_descuento').addEventListener('input', updateFcTotals);
+  document.getElementById('fc_descuento_modo').addEventListener('change', updateFcTotals);
+
+  // Escaneo rápido dentro de la factura: si el código ya existe en el
+  // inventario, agrega (o suma cantidad a) una fila con sus datos actuales.
+  // Si es un código nuevo, agrega una fila vacía con el código ya puesto,
+  // lista para escribir solo el nombre y los precios — así llega mucho más
+  // rápido un producto que todavía no estaba en el inventario.
+  const fcScanInputEl = document.getElementById('fcScanInput');
+  fcScanInputEl.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const code = fcScanInputEl.value.trim();
+    fcScanInputEl.value = '';
+    if(!code) return;
+    const encontrado = STATE.productos.find(p => (p.codigo_barras && p.codigo_barras.trim()===code) || (p.codigo && p.codigo.trim()===code));
+    if(encontrado){
+      const existente = fcItems.find(it => it.productoIdExistente === encontrado.id);
+      if(existente){ existente.cantidad += 1; }
+      else{
+        const vacio = fcItems.find(it => !it.nombre && !it.codigo);
+        const nuevo = {tempId: vacio?vacio.tempId:uid(), codigo: encontrado.codigo||code, nombre: encontrado.nombre, cantidad:1, precio_compra: Number(encontrado.precio_compra)||0, precio_venta: Number(encontrado.precio_venta)||0, productoIdExistente: encontrado.id};
+        if(vacio) Object.assign(vacio, nuevo); else fcItems.push(nuevo);
+      }
+      sfx.scanOk();
+      toast('ok', 'Agregado: '+encontrado.nombre);
+    } else {
+      const vacio = fcItems.find(it => !it.nombre && !it.codigo);
+      const filaNueva = {tempId: vacio?vacio.tempId:uid(), codigo: code, nombre:'', cantidad:1, precio_compra:0, precio_venta:0};
+      if(vacio) Object.assign(vacio, filaNueva); else fcItems.push(filaNueva);
+      sfx.scanNew();
+      toast('info', 'Código nuevo — completa el nombre y los precios en la fila que se agregó.');
+    }
+    renderFcItems(); updateFcTotals();
+    setTimeout(()=>{
+      const row = document.querySelector('#fcItemsList [data-fc-temp] input[data-fc-nombre]');
+      const rows = document.querySelectorAll('#fcItemsList [data-fc-nombre]');
+      if(rows.length) rows[rows.length-1].focus();
+      fcScanInputEl.focus();
+    }, 50);
+  });
+
+  function openFacturaModal(){
+    if(!isJefe){ sfx.error(); toast('err','Esta función es solo para Modo Jefe.'); return; }
+    ['fc_proveedor','fc_numero','fc_fecha_pago','fc_responsable'].forEach(id=> document.getElementById(id).value = '');
+    document.getElementById('fc_fecha_compra').value = todayStr();
+    document.getElementById('fc_descuento').value = 0;
+    document.getElementById('fc_descuento_modo').value = 'cop';
+    document.getElementById('fc_dl_productos').innerHTML = STATE.productos.map(p=>`<option value="${escapeHtml(p.nombre)}">`).join('');
+    fcItems = [{tempId:uid(), codigo:'', nombre:'', cantidad:1, precio_compra:0, precio_venta:0}];
+    renderFcItems(); updateFcTotals();
+    openOverlay('overlayFactura');
+    setTimeout(()=> fcScanInputEl.focus(), 250);
+  }
+  document.getElementById('addFacturaBtn').addEventListener('click', ()=>{ sfx.click(); openFacturaModal(); });
+
+  document.getElementById('saveFacturaBtn').addEventListener('click', async ()=>{
+    const proveedor = document.getElementById('fc_proveedor').value.trim();
+    const fechaCompra = document.getElementById('fc_fecha_compra').value;
+    const responsable = document.getElementById('fc_responsable').value.trim();
+    if(!proveedor || !fechaCompra || !responsable){ sfx.error(); toast('err','Completa proveedor, fecha de compra y responsable.'); return; }
+    const validos = fcItems.filter(it=> it.nombre.trim() && it.cantidad>0);
+    if(!validos.length){ sfx.error(); toast('err','Agrega al menos un producto válido (nombre y cantidad).'); return; }
+
+    const numero = document.getElementById('fc_numero').value.trim();
+    const fechaPago = document.getElementById('fc_fecha_pago').value || null;
+    const nowIso = todayStr();
+    const touched = [];
+    const historialCambios = [];
+    const itemsFactura = [];
+
+    for(const it of validos){
+      // Prioridad para encontrar el producto: el que ya se resolvió al
+      // escanear > coincidencia exacta de código > coincidencia de nombre.
+      let p = it.productoIdExistente ? STATE.productos.find(x=>x.id===it.productoIdExistente) : null;
+      if(!p && it.codigo && it.codigo.trim()){
+        const codeNorm = it.codigo.trim().toLowerCase();
+        p = STATE.productos.find(x => (x.codigo_barras && x.codigo_barras.trim().toLowerCase()===codeNorm) || (x.codigo && x.codigo.trim().toLowerCase()===codeNorm));
+      }
+      if(!p){
+        const nombreNorm = it.nombre.trim().toLowerCase();
+        p = STATE.productos.find(x => x.nombre.trim().toLowerCase() === nombreNorm);
+      }
+      if(p){
+        const cambios = [];
+        const cantAnterior = Number(p.cantidad_disponible)||0;
+        p.cantidad_disponible = cantAnterior + it.cantidad;
+        cambios.push({campo:'cantidad_disponible', valor_anterior:cantAnterior, valor_nuevo:p.cantidad_disponible});
+        if(it.precio_compra>0 && Number(p.precio_compra)!==it.precio_compra){ cambios.push({campo:'precio_compra', valor_anterior:p.precio_compra, valor_nuevo:it.precio_compra}); p.precio_compra = it.precio_compra; }
+        if(it.precio_venta>0 && Number(p.precio_venta)!==it.precio_venta){ cambios.push({campo:'precio_venta', valor_anterior:p.precio_venta, valor_nuevo:it.precio_venta}); p.precio_venta = it.precio_venta; }
+        if(it.codigo && it.codigo.trim() && !p.codigo_barras){ p.codigo_barras = it.codigo.trim(); }
+        p.ultima_actualizacion = nowIso; p.responsable = responsable;
+        touched.push(p);
+        if(cambios.length) historialCambios.push({productoId:p.id, nombre:p.nombre, cambios});
+        itemsFactura.push({producto_id:p.id, nombre:p.nombre, cantidad:it.cantidad, precio_compra:it.precio_compra, precio_venta:it.precio_venta, esNuevo:false});
+      } else {
+        const np = {
+          id:uid(), codigo: it.codigo?it.codigo.trim():'', codigo_barras: it.codigo?it.codigo.trim():'', nombre:it.nombre.trim(), presentacion:'', concentracion:'',
+          laboratorio:'', categoria:'Medicamentos', cantidad_disponible:it.cantidad, cantidad_minima:0, cantidad_maxima:0,
+          ubicacion:'', lote:'', fecha_vencimiento:'', precio_compra:it.precio_compra, precio_venta:it.precio_venta, iva:0, proveedor,
+          fecha_ingreso:nowIso, ultima_actualizacion:nowIso, responsable, observaciones:'Creado desde factura de proveedor.'
+        };
+        STATE.productos.push(np);
+        touched.push(np);
+        itemsFactura.push({producto_id:np.id, nombre:np.nombre, cantidad:it.cantidad, precio_compra:it.precio_compra, precio_venta:it.precio_venta, esNuevo:true});
+      }
+    }
+
+    const subtotal = validos.reduce((s,it)=> s+(it.cantidad*it.precio_compra), 0);
+    const {monto: descuentoMonto, porcentaje: descuentoPct} = calcularDescuentoFactura(subtotal);
+    const montoTotal = Math.max(0, subtotal - descuentoMonto);
+    const factura = {
+      id: uid(), numero_factura: numero, proveedor, fecha_compra: fechaCompra, fecha_pago: fechaPago,
+      monto_total: montoTotal, descuento: descuentoMonto, descuento_porcentaje: descuentoPct,
+      items: itemsFactura, responsable, notas: '', pagada: false, fecha_pago_realizado: null
+    };
+
+    try{
+      for(const p of touched){ await dbSaveProducto(p); }
+      for(const h of historialCambios){ await dbSaveHistorial(h.productoId, h.nombre, h.cambios, responsable); }
+      await dbSaveFacturaCompra(factura);
+      sfx.success();
+      toast('ok','Factura registrada — el inventario ya quedó actualizado.');
+      closeOverlay('overlayFactura');
+      renderAll();
+    }catch(e){ /* toast de error ya mostrado */ }
+  });
+
+  document.getElementById('facturasSearch').addEventListener('input', renderFacturasList);
+  document.getElementById('facturasFilterEstado').addEventListener('change', ()=>{ sfx.toggle(); renderFacturasList(); });
+
+  /* ============ REPORTE DE GANANCIAS (solo Modo Jefe) ============ */
+  let gananciasRango = {dias:15, desde:null, hasta:null, agrupacion:'dia'};
+
+  function renderGananciasControles(){
+    const el = document.getElementById('gananciasControles');
+    if(!el || el.dataset.built) { return; }
+    el.dataset.built = '1';
+    const rangos = [{l:'2 días', d:2},{l:'5 días', d:5},{l:'8 días', d:8},{l:'15 días', d:15},{l:'1 mes', d:30}];
+    el.innerHTML = rangos.map(r=>`<button type="button" class="quick-range-btn" data-rango="${r.d}">${r.l}</button>`).join('') +
+      `<button type="button" class="quick-range-btn" data-rango="custom">Personalizado</button>
+       <select class="filter" id="gananciasAgrupacion" style="padding:8px 12px; font-size:12.5px;">
+         <option value="dia">Por día</option>
+         <option value="semana">Por semana</option>
+         <option value="mes">Por mes</option>
+         <option value="anio">Por año</option>
+       </select>
+       <span id="gananciasCustomFields" style="display:none; gap:8px; align-items:center;">
+         <input type="date" id="gananciasDesde" class="fc-item-row-input" style="padding:8px 10px; border-radius:8px; border:1.5px solid var(--borde); font-size:12.5px;">
+         <span style="font-size:12px; color:var(--texto-suave);">a</span>
+         <input type="date" id="gananciasHasta" style="padding:8px 10px; border-radius:8px; border:1.5px solid var(--borde); font-size:12.5px;">
+       </span>`;
+    el.querySelectorAll('[data-rango]').forEach(b=> b.addEventListener('click', ()=>{
+      sfx.toggle();
+      el.querySelectorAll('.quick-range-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const val = b.getAttribute('data-rango');
+      const customFields = document.getElementById('gananciasCustomFields');
+      if(val==='custom'){
+        customFields.style.display = 'inline-flex';
+        gananciasRango.dias = null;
+      } else {
+        customFields.style.display = 'none';
+        gananciasRango.dias = Number(val);
+      }
+      renderGananciasReport();
+    }));
+    document.getElementById('gananciasAgrupacion').addEventListener('change', renderGananciasReport);
+    document.getElementById('gananciasDesde').addEventListener('change', renderGananciasReport);
+    document.getElementById('gananciasHasta').addEventListener('change', renderGananciasReport);
+    // Activa "15 días" por defecto al abrir por primera vez.
+    el.querySelector('[data-rango="15"]').classList.add('active');
+  }
+
+  function renderGananciasReport(){
+    const resumenEl = document.getElementById('gananciasResumen');
+    const desgloseEl = document.getElementById('gananciasDesglose');
+    if(!resumenEl || !desgloseEl) return;
+
+    let desde, hasta;
+    const customFields = document.getElementById('gananciasCustomFields');
+    const enModoCustom = customFields && customFields.style.display !== 'none';
+    hasta = new Date(); hasta.setHours(23,59,59,999);
+    if(enModoCustom){
+      const dVal = document.getElementById('gananciasDesde').value;
+      const hVal = document.getElementById('gananciasHasta').value;
+      if(!dVal || !hVal){ desgloseEl.innerHTML = '<p style="font-size:12.5px;color:var(--texto-suave);">Elige las dos fechas del rango personalizado.</p>'; resumenEl.innerHTML=''; return; }
+      desde = new Date(dVal+'T00:00:00');
+      hasta = new Date(hVal+'T23:59:59');
+    } else {
+      desde = new Date(); desde.setHours(0,0,0,0); desde.setDate(desde.getDate() - (gananciasRango.dias-1));
+    }
+    const agrupacion = document.getElementById('gananciasAgrupacion') ? document.getElementById('gananciasAgrupacion').value : 'dia';
+
+    const ventasRango = STATE.ventas.filter(v=>{ const f = new Date(v.fecha); return f>=desde && f<=hasta; });
+    let totalVendido = 0, totalCosto = 0, algunSinCosto = false;
+    const porPeriodo = {};
+    ventasRango.forEach(v=>{
+      const f = new Date(v.fecha);
+      let clave;
+      if(agrupacion==='dia') clave = f.toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+      else if(agrupacion==='semana'){ const ini = new Date(f); ini.setDate(f.getDate()-f.getDay()); clave = 'Sem. '+ini.toLocaleDateString('es-CO',{day:'2-digit',month:'short'}); }
+      else if(agrupacion==='mes') clave = f.toLocaleDateString('es-CO',{month:'short',year:'numeric'});
+      else clave = f.getFullYear().toString();
+      if(!porPeriodo[clave]) porPeriodo[clave] = {vendido:0, costo:0};
+      (v.items||[]).forEach(it=>{
+        const vendidoItem = Number(it.subtotal)||0;
+        const costoItem = (it.costo_unitario!==undefined ? Number(it.costo_unitario) : 0) * Number(it.cantidad||0);
+        if(it.costo_unitario===undefined) algunSinCosto = true;
+        totalVendido += vendidoItem; totalCosto += costoItem;
+        porPeriodo[clave].vendido += vendidoItem; porPeriodo[clave].costo += costoItem;
+      });
+    });
+    const ganancia = totalVendido - totalCosto;
+    const margen = totalVendido>0 ? (ganancia/totalVendido*100) : 0;
+
+    resumenEl.innerHTML = `
+      <div class="stat-card"><div class="n" style="font-size:20px;">${fmtCOP(totalVendido)}</div><div class="l">Total vendido</div></div>
+      <div class="stat-card"><div class="n" style="font-size:20px;">${fmtCOP(totalCosto)}</div><div class="l">Costo de lo vendido</div></div>
+      <div class="stat-card good"><div class="n" style="font-size:20px;">${fmtCOP(ganancia)}</div><div class="l">Ganancia neta</div></div>
+      <div class="stat-card good"><div class="n" style="font-size:20px;">${margen.toFixed(1)}%</div><div class="l">Margen</div></div>
+    `;
+
+    const claves = Object.keys(porPeriodo);
+    if(!claves.length){ desgloseEl.innerHTML = '<p style="font-size:12.5px;color:var(--texto-suave);">No hay ventas en este periodo.</p>'; return; }
+    const maxGanancia = Math.max(...claves.map(k=> porPeriodo[k].vendido - porPeriodo[k].costo), 1);
+    let html = claves.map(k=>{
+      const g = porPeriodo[k].vendido - porPeriodo[k].costo;
+      const pct = Math.max(3, Math.round(Math.abs(g)/maxGanancia*100));
+      return `<div class="ganancia-bar-row"><span class="gb-label">${escapeHtml(k)}</span><div class="gb-track"><div class="gb-fill" style="width:${pct}%"></div></div><span class="gb-val">${fmtCOP(g)}</span></div>`;
+    }).join('');
+    if(algunSinCosto) html += '<p style="font-size:11.5px; color:var(--texto-suave); margin-top:10px;">⚠️ Algunas ventas de este periodo son de antes de activar esta función y no tienen el costo guardado — para esas, el costo se cuenta como $0 (la ganancia puede verse más alta de lo real).</p>';
+    desgloseEl.innerHTML = html;
+  }
+
   function renderVentasList(){
     const list = document.getElementById('ventasList');
     if(!list) return;
@@ -2829,6 +3432,7 @@
           ${((isAdmin||isCajero) && estado==='debe') ? `<button class="act-edit" data-venta-pagar="${v.id}" title="Marcar como pagada en su totalidad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>` : ''}
         </div>
         ${(v.pagos && v.pagos.length) ? `<div style="flex-basis:100%; font-size:11.5px; color:var(--texto-suave); margin-top:2px;">Abonos: ${v.pagos.map(pg=>fmtCOP(pg.monto)+' ('+escapeHtml(pg.responsable||'—')+', '+new Date(pg.fecha).toLocaleDateString('es-CO')+')').join(' · ')}</div>` : ''}
+        <div style="flex-basis:100%; font-size:12px; color:var(--texto-suave); margin-top:4px; padding-top:6px; border-top:1px dashed var(--borde);">${v.items.map(i=>escapeHtml(i.nombre)+' ×'+i.cantidad).join(' · ')}</div>
       </div>`;
     }).join('');
     list.querySelectorAll('[data-venta-print]').forEach(b=> b.addEventListener('click', ()=>{ const v=STATE.ventas.find(x=>x.id===b.getAttribute('data-venta-print')); if(v){ sfx.click(); printRecibo(v); } }));
