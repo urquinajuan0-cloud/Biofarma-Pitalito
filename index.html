@@ -822,6 +822,11 @@
             <label for="posFiado">Venta fiada (el cliente queda debiendo)</label>
           </div>
           <div class="field" id="posAbonoWrap" style="display:none; margin-top:10px;"><label>Abono inicial (opcional, COP)</label><input type="number" min="0" id="posAbono" value="0"></div>
+          <div class="field" id="posEfectivoWrap" style="margin-top:10px;">
+            <label>Efectivo recibido (opcional, COP)</label>
+            <input type="number" min="0" id="posEfectivo" placeholder="Deja en blanco si no es pago en efectivo">
+            <div id="posCambioTxt" style="font-size:12.5px; font-weight:700; color:var(--verde-oscuro); margin-top:6px;"></div>
+          </div>
           <div style="display:flex; gap:10px; margin-top:16px;">
             <button class="btn btn-ghost" id="posClearBtn" style="flex:1;">Vaciar</button>
             <button class="btn btn-green" id="posCobrarBtn" style="flex:1;">Cobrar e imprimir</button>
@@ -1012,6 +1017,11 @@
       <div class="field"><label>Subtítulo de bienvenida</label><textarea id="cfgSubtitle"></textarea></div>
       <div class="field"><label>Teléfono de contacto</label><input type="text" id="cfgPhone"></div>
       <div class="field"><label>Dirección</label><input type="text" id="cfgAddr"></div>
+      <div class="form-section-title">🧾 Datos de facturación (para el recibo impreso)</div>
+      <div class="field"><label>NIT</label><input type="text" id="cfgNit" placeholder="Ej. 1083876019-1"></div>
+      <div class="field"><label>Resolución DIAN</label><input type="text" id="cfgResolucion" placeholder="Ej. Resol. DIAN No. ... del dd/mm/aaaa"></div>
+      <div class="field"><label>Rango de facturación autorizado</label><input type="text" id="cfgRangoFacturas" placeholder="Ej. HABILITA FACT: 1-500000 a 1-1000000"></div>
+      <div class="field"><label>Régimen</label><input type="text" id="cfgRegimen" placeholder="Ej. REGIMEN COMUN"></div>
       <div class="form-section-title">🔐 Cambiar contraseñas</div>
       <p style="font-size:12px; color:var(--texto-suave); margin-bottom:10px;">Para cambiar una contraseña debes escribir la contraseña actual y la nueva. Deja ambos campos vacíos si no quieres cambiarla.</p>
       <div class="field"><label>Contraseña de administrador actual</label><input type="password" id="cfgCurPass" placeholder="Contraseña actual"></div>
@@ -1276,8 +1286,12 @@
     config: {
       title: 'Bienvenido a Droguería BioFarma',
       subtitle: 'Gestiona el inventario de medicamentos, controla vencimientos y mantén el stock siempre bajo control, todo en un solo lugar.',
-      phone: '311 715 7029',
-      address: 'Cl. 22a Sur #2-150 este, Pitalito, Huila',
+      phone: '311 715 7029 - 311 824 8859',
+      address: 'Calle 22A Sur #2-150 Este, Vía Palestina-Pitalito (Huila)',
+      nit: '1083876019-1',
+      resolucionDian: 'Resol. DIAN No. 18764035285638 del 15/05/2017',
+      rangoFacturas: 'HABILITA FACT: 1-500000 a 1-1000000',
+      regimen: 'REGIMEN COMUN',
       password: 'biofarma2025',
       passwordVentas: 'ventas2025',
       passwordJefe: 'jefe2025',
@@ -1486,7 +1500,7 @@
       STATE.config = Object.assign({}, STATE.config, cfgRes.data[0], {supabaseUrl: STATE.config.supabaseUrl, supabaseKey: STATE.config.supabaseKey});
     } else {
       const cfgRow = Object.assign({id:1}, STATE.config);
-      delete cfgRow.supabaseUrl; delete cfgRow.supabaseKey; delete cfgRow.password; delete cfgRow.passwordVentas;
+      delete cfgRow.supabaseUrl; delete cfgRow.supabaseKey; delete cfgRow.password; delete cfgRow.passwordVentas; delete cfgRow.passwordJefe;
       await supa.from('config').upsert(cfgRow);
     }
     if(prodRes.data && prodRes.data.length){
@@ -1559,7 +1573,7 @@
   async function dbSaveConfig(){
     if(supa){
       const cfgRow = Object.assign({id:1}, STATE.config);
-      delete cfgRow.supabaseUrl; delete cfgRow.supabaseKey; delete cfgRow.password; delete cfgRow.passwordVentas;
+      delete cfgRow.supabaseUrl; delete cfgRow.supabaseKey; delete cfgRow.password; delete cfgRow.passwordVentas; delete cfgRow.passwordJefe;
       const {error} = await supa.from('config').upsert(cfgRow);
       if(error){ toast('err','Error guardando configuración en Supabase: '+error.message); throw error; }
     }
@@ -1738,8 +1752,10 @@
       banner.innerHTML = `<div class="vence-banner">
         <div class="vb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <div class="vb-text"><b>⚠️ ${urgentes.length} producto(s) vencido(s) o por vencer esta semana</b><span>${escapeHtml(nombres)}</span></div>
-        <button class="btn btn-light" data-view-go="inventario">Revisar ahora</button>
+        <button class="btn btn-light" id="banerRevisarBtn">Revisar ahora</button>
       </div>`;
+      const btnRevisar = document.getElementById('banerRevisarBtn');
+      if(btnRevisar) btnRevisar.addEventListener('click', ()=>{ sfx.click(); goView('inventario'); });
     } else {
       banner.innerHTML = '';
     }
@@ -1887,8 +1903,11 @@
     rojoTexto:'FFB00020', rojoFondo:'FFFCE7E7'
   };
 
-  function estilarHoja(ws, {titulo, subtitulo, headers, rows, currencyCols=[], statusCol=null, statusColors={}, widths=[]}){
+  function estilarHoja(ws, {titulo, subtitulo, headers, rows, currencyCols=[], statusCol=null, statusColors={}, statusCols=[], widths=[]}){
     const numCols = headers.length;
+    // Compatibilidad: si se pasó un solo statusCol/statusColors, se trata como
+    // una entrada más dentro de statusCols (que admite varias columnas coloreadas).
+    const columnasEstado = statusCol!==null ? [{col:statusCol, colors:statusColors}, ...statusCols] : statusCols;
     ws.mergeCells(1,1,1,numCols);
     const tCell = ws.getCell(1,1);
     tCell.value = titulo;
@@ -1924,15 +1943,15 @@
         if(currencyCols.includes(ci)) cell.numFmt = '"$"#,##0';
         if(ri%2===1) cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:XLS_COLOR.zebra}};
       });
-      if(statusCol!==null){
-        const estado = row[statusCol];
-        const c = statusColors[estado];
+      columnasEstado.forEach(({col, colors})=>{
+        const valor = row[col];
+        const c = colors[valor];
         if(c){
-          const cell = ws.getCell(rowIndex, statusCol+1);
+          const cell = ws.getCell(rowIndex, col+1);
           cell.font = {bold:true, color:{argb:c.texto}};
           cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:c.fondo}};
         }
-      }
+      });
     });
 
     headers.forEach((h,i)=>{ ws.getColumn(i+1).width = widths[i] || Math.max(13, h.length+3); });
@@ -1947,7 +1966,10 @@
     'Pagado': {texto:XLS_COLOR.verdeTexto, fondo:XLS_COLOR.verdeFondo},
     'Debe': {texto:XLS_COLOR.rojoTexto, fondo:XLS_COLOR.rojoFondo},
     'Sí': {texto:XLS_COLOR.verdeTexto, fondo:XLS_COLOR.verdeFondo},
-    'No': {texto:XLS_COLOR.rojoTexto, fondo:XLS_COLOR.rojoFondo}
+    'No': {texto:XLS_COLOR.rojoTexto, fondo:XLS_COLOR.rojoFondo},
+    'Falta registro': {texto:XLS_COLOR.rojoTexto, fondo:XLS_COLOR.rojoFondo},
+    'Registrado': {texto:XLS_COLOR.verdeTexto, fondo:XLS_COLOR.verdeFondo},
+    'No requiere': {texto:XLS_COLOR.textoSuave, fondo:XLS_COLOR.zebra}
   };
 
   async function exportarTodoExcel(){
@@ -1969,13 +1991,17 @@
     const totalUnidades = STATE.productos.reduce((s,p)=>s+(Number(p.cantidad_disponible)||0),0);
     const agotados = STATE.productos.filter(p=>calcularEstado(p)==='agotado').length;
     const porVencer = STATE.productos.filter(p=>calcularEstado(p)==='por_vencer').length;
+    const disponibles = STATE.productos.length - agotados - porVencer;
+    const sinInvima = STATE.productos.filter(p => p.invima_tipo && p.invima_tipo !== 'No requiere' && !p.invima).length;
     const totalVendidoHist = STATE.ventas.reduce((s,v)=>s+Number(v.total||0),0);
     let filasResumen = [
       ['Fecha de exportación', new Date().toLocaleString('es-CO')],
       ['Productos distintos en inventario', STATE.productos.length],
       ['Unidades totales en stock', totalUnidades],
+      ['Productos disponibles', disponibles],
       ['Productos agotados', agotados],
       ['Productos próximos a vencer', porVencer],
+      ['Productos sin registro INVIMA', sinInvima],
       ['Ventas registradas (histórico)', STATE.ventas.length],
       ['Total vendido (histórico)', totalVendidoHist],
       ['Cierres de caja guardados', STATE.cierres.length],
@@ -1998,21 +2024,24 @@
     const idxPrecioCompra = colInv.length; // se usa más abajo para saber en qué columna va, si aplica
     if(isJefe) colInv.push('Precio de compra');
     colInv.push('Precio de venta','IVA (%)','Proveedor','Registro INVIMA','Tipo de registro INVIMA',
-      'Vencimiento INVIMA','Requiere fórmula','Estado','Fecha de ingreso','Última actualización','Responsable','Observaciones');
+      'Vencimiento INVIMA','Estado INVIMA','Requiere fórmula','Estado','Fecha de ingreso','Última actualización','Responsable','Observaciones');
     const estadoColInv = colInv.indexOf('Estado');
+    const estadoInvimaColInv = colInv.indexOf('Estado INVIMA');
     const currencyColsInv = isJefe ? [idxPrecioCompra, idxPrecioCompra+1] : [colInv.indexOf('Precio de venta')];
     const filasInv = STATE.productos.map(p=>{
       const f = [p.codigo, p.codigo_barras, p.nombre, p.presentacion, p.concentracion, p.laboratorio, p.categoria,
         p.cantidad_disponible, p.cantidad_minima, p.cantidad_maxima, p.ubicacion, p.lote, p.fecha_vencimiento||''];
       if(isJefe) f.push(p.precio_compra||0);
-      f.push(p.precio_venta||0, p.iva||0, p.proveedor, p.invima, p.invima_tipo, p.invima_vencimiento||'',
+      const estadoInvima = (!p.invima_tipo || p.invima_tipo==='No requiere') ? 'No requiere' : (p.invima ? 'Registrado' : 'Falta registro');
+      f.push(p.precio_venta||0, p.iva||0, p.proveedor, p.invima, p.invima_tipo, p.invima_vencimiento||'', estadoInvima,
         p.requiere_formula||'No', ESTADO_LABEL[calcularEstado(p)], p.fecha_ingreso||'', p.ultima_actualizacion||'', p.responsable, p.observaciones);
       return f;
     });
     const wsInv = wb.addWorksheet('Inventario');
     estilarHoja(wsInv, {
-      titulo:'BioFarma Pitalito — Inventario', subtitulo: STATE.productos.length+' producto(s)',
-      headers:colInv, rows:filasInv, currencyCols:currencyColsInv, statusCol:estadoColInv, statusColors:ESTADO_COLORES
+      titulo:'BioFarma Pitalito — Inventario', subtitulo: STATE.productos.length+' producto(s) — '+sinInvima+' sin registro INVIMA',
+      headers:colInv, rows:filasInv, currencyCols:currencyColsInv,
+      statusCols:[{col:estadoColInv, colors:ESTADO_COLORES}, {col:estadoInvimaColInv, colors:ESTADO_COLORES}]
     });
 
     // ---- Pestaña 2: Ventas detalladas ----
@@ -2321,6 +2350,10 @@
     document.getElementById('cfgSubtitle').value = STATE.config.subtitle;
     document.getElementById('cfgPhone').value = STATE.config.phone;
     document.getElementById('cfgAddr').value = STATE.config.address;
+    document.getElementById('cfgNit').value = STATE.config.nit||'';
+    document.getElementById('cfgResolucion').value = STATE.config.resolucionDian||'';
+    document.getElementById('cfgRangoFacturas').value = STATE.config.rangoFacturas||'';
+    document.getElementById('cfgRegimen').value = STATE.config.regimen||'';
     document.getElementById('cfgCurPass').value = '';
     document.getElementById('cfgNewPass').value = '';
     document.getElementById('cfgCurPassVentas').value = '';
@@ -2343,6 +2376,10 @@
     STATE.config.subtitle = document.getElementById('cfgSubtitle').value.trim() || STATE.config.subtitle;
     STATE.config.phone = document.getElementById('cfgPhone').value.trim() || STATE.config.phone;
     STATE.config.address = document.getElementById('cfgAddr').value.trim() || STATE.config.address;
+    STATE.config.nit = document.getElementById('cfgNit').value.trim();
+    STATE.config.resolucionDian = document.getElementById('cfgResolucion').value.trim();
+    STATE.config.rangoFacturas = document.getElementById('cfgRangoFacturas').value.trim();
+    STATE.config.regimen = document.getElementById('cfgRegimen').value.trim();
     // Cambio de contraseñas: siempre exige la contraseña actual, sea o no
     // haya Supabase conectado. Si hay Supabase, el cambio se hace mediante
     // una función RPC que verifica y actualiza del lado de la base de datos.
@@ -2953,7 +2990,21 @@
     });
     list.querySelectorAll('[data-pos-remove]').forEach(b=> b.addEventListener('click', ()=>{ sfx.delete(); posCart = posCart.filter(x=>x.tempId!==b.getAttribute('data-pos-remove')); renderPosCart(); }));
     list.querySelectorAll('[data-pos-mode]').forEach(sel=> sel.addEventListener('change', ()=>{ const r=posCart.find(x=>x.tempId===sel.getAttribute('data-pos-mode')); if(r){ r.modo = sel.value; renderPosCart(); } }));
+    actualizarCambioPos();
   }
+
+  function actualizarCambioPos(){
+    const total = posCart.reduce((sum,r)=>{ const m=r.modos.find(x=>x.key===r.modo)||r.modos[0]; return sum + m.price*r.cantidad; },0);
+    const efectivoEl = document.getElementById('posEfectivo');
+    const txt = document.getElementById('posCambioTxt');
+    if(!efectivoEl || !txt) return;
+    const efectivo = Number(efectivoEl.value);
+    if(!efectivoEl.value || isNaN(efectivo)){ txt.textContent = ''; return; }
+    const cambio = efectivo - total;
+    if(cambio < 0){ txt.style.color = 'var(--rojo)'; txt.textContent = 'Falta '+fmtCOP(Math.abs(cambio)); }
+    else{ txt.style.color = 'var(--verde-oscuro)'; txt.textContent = 'Cambio a entregar: '+fmtCOP(cambio); }
+  }
+  document.getElementById('posEfectivo').addEventListener('input', actualizarCambioPos);
 
   const posScanInputEl = document.getElementById('posScanInput');
   posScanInputEl.addEventListener('keydown', (e)=>{
@@ -3029,12 +3080,19 @@
       sfx.cashRegister();
       lanzarConfeti(document.getElementById('posCobrarBtn'));
       toast('ok', 'Venta registrada' + (fiado ? ' (fiada).' : '.'));
+      const efectivoIngresado = document.getElementById('posEfectivo').value;
+      if(efectivoIngresado !== '' && !isNaN(Number(efectivoIngresado))){
+        venta.efectivo_recibido = Number(efectivoIngresado);
+        venta.cambio = Math.max(0, venta.efectivo_recibido - venta.total);
+      }
       printRecibo(venta);
       posCart = [];
       document.getElementById('posCliente').value = '';
       document.getElementById('posFiado').checked = false;
       document.getElementById('posAbono').value = 0;
       document.getElementById('posAbonoWrap').style.display = 'none';
+      document.getElementById('posEfectivo').value = '';
+      document.getElementById('posCambioTxt').textContent = '';
       renderAll();
     }catch(e){ sfx.error(); toast('err','No se pudo registrar la venta.'); }
   });
@@ -3134,9 +3192,11 @@
     let b = [];
     b.push(...escInit());
     b.push(...escAlign(1)); b.push(...escBold(true));
-    b.push(...txt('BioFarma\n'));
+    b.push(...txt('Drogueria\nBiofarma Pitalito\n'));
     b.push(...escBold(false));
-    b.push(...txt((STATE.config.address||'Pitalito, Huila')+'\n'));
+    b.push(...txt('Salud y bienestar para ti\n'));
+    b.push(...txt('NIT: '+(STATE.config.nit||'')+'\n'));
+    b.push(...txt((STATE.config.address||'')+'\n'));
     b.push(...txt('Tel: '+(STATE.config.phone||'')+'\n'));
     b.push(...escAlign(0));
     b.push(...linea('-', ancho));
@@ -3153,6 +3213,10 @@
     b.push(...escBold(true));
     b.push(...colDerecha('TOTAL', fmtCOP(venta.total), ancho));
     b.push(...escBold(false));
+    if(!venta.fiado && venta.efectivo_recibido!==undefined){
+      b.push(...colDerecha('Entregado efectivo', fmtCOP(venta.efectivo_recibido), ancho));
+      b.push(...colDerecha('Cambio', fmtCOP(venta.cambio), ancho));
+    }
     if(venta.fiado){
       b.push(...colDerecha('Abono', fmtCOP(venta.abono), ancho));
       b.push(...escBold(true));
@@ -3161,8 +3225,13 @@
     }
     b.push(...linea('-', ancho));
     b.push(...escAlign(1));
-    b.push(...txt(venta.fiado ? 'VENTA FIADA - Conserve este recibo\n' : 'Gracias por su compra!\n'));
-    b.push(...txt('Factura Nro '+(venta.numero_factura ? String(venta.numero_factura).padStart(6,'0') : venta.id.slice(-6).toUpperCase())+'\n'));
+    if(STATE.config.resolucionDian) b.push(...txt(STATE.config.resolucionDian+'\n'));
+    if(STATE.config.rangoFacturas) b.push(...txt(STATE.config.rangoFacturas+'\n'));
+    if(STATE.config.regimen) b.push(...txt(STATE.config.regimen+'\n'));
+    b.push(...txt(venta.fiado ? 'VENTA FIADA - Conserve este recibo\n' : 'Gracias por su compra\n'));
+    if(!venta.fiado) b.push(...txt('Vuelva pronto!\n'));
+    b.push(...txt('Factura de Venta No. '+(venta.numero_factura ? String(venta.numero_factura).padStart(7,'0') : venta.id.slice(-6).toUpperCase())+'\n'));
+    b.push(...txt('Tiquete generado por el sistema POS\n'));
     b.push(...escFeed(3));
     b.push(...escCut());
     return new Uint8Array(b);
@@ -3223,25 +3292,41 @@
     }
     const el = document.getElementById('reciboPrint');
     const fecha = new Date(venta.fecha);
-    const fechaStr = fecha.toLocaleDateString('es-CO') + ' ' + fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-    const rows = venta.items.map(i=> `<tr><td colspan="2">${escapeHtml(i.nombre)}</td></tr><tr><td>${i.cantidad} x ${fmtCOP(i.precio_unitario)}</td><td style="text-align:right;">${fmtCOP(i.subtotal)}</td></tr>`).join('');
+    const fechaStr = fecha.toLocaleDateString('es-CO') + '  ' + fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    const rows = venta.items.map(i=> `
+      <tr><td colspan="3">${escapeHtml(i.nombre)}</td></tr>
+      <tr><td>${i.cantidad}</td><td style="text-align:right;">${fmtCOP(i.precio_unitario)}</td><td style="text-align:right;">${fmtCOP(i.subtotal)}</td></tr>`).join('');
     el.innerHTML = `
-      <h2>BioFarma</h2>
-      <div class="rc-center">${escapeHtml(STATE.config.address||'Pitalito, Huila')}<br>Tel: ${escapeHtml(STATE.config.phone||'')}</div>
+      <h2>Droguería<br>Biofarma Pitalito</h2>
+      <div class="rc-center">Salud y bienestar para ti</div>
+      <div class="rc-center">NIT: ${escapeHtml(STATE.config.nit||'')}</div>
+      <div class="rc-center">${escapeHtml(STATE.config.address||'')}</div>
+      <div class="rc-center">Tel: ${escapeHtml(STATE.config.phone||'')}</div>
       <hr>
       <div>Fecha: ${fechaStr}</div>
       <div>Cliente: ${escapeHtml(venta.cliente)}</div>
-      <div>Atendido por: ${escapeHtml(venta.responsable)}</div>
+      <div>Atiende: ${escapeHtml(venta.responsable)}</div>
       <hr>
+      <table>
+        <tr><td><b>DESCRIPCION</b></td><td style="text-align:right;"><b>CANT</b></td><td></td></tr>
+      </table>
       <table>${rows}</table>
       <hr>
       <table>
         <tr><td class="rc-tot">TOTAL</td><td class="rc-tot" style="text-align:right;">${fmtCOP(venta.total)}</td></tr>
+        ${(!venta.fiado && venta.efectivo_recibido!==undefined) ? `
+        <tr><td>Entregado efectivo</td><td style="text-align:right;">${fmtCOP(venta.efectivo_recibido)}</td></tr>
+        <tr><td>Cambio</td><td style="text-align:right;">${fmtCOP(venta.cambio)}</td></tr>` : ''}
         ${venta.fiado ? `<tr><td>Abono</td><td style="text-align:right;">${fmtCOP(venta.abono)}</td></tr><tr><td><b>Saldo pendiente</b></td><td style="text-align:right;"><b>${fmtCOP(venta.saldo)}</b></td></tr>` : ''}
       </table>
       <hr>
-      <div class="rc-center">${venta.fiado ? 'VENTA FIADA — Conserve este recibo' : '¡Gracias por su compra!'}</div>
-      <div class="rc-center">Factura Nº ${venta.numero_factura ? String(venta.numero_factura).padStart(6,'0') : venta.id.slice(-6).toUpperCase()}</div>
+      <div class="rc-center">${escapeHtml(STATE.config.resolucionDian||'')}</div>
+      <div class="rc-center">${escapeHtml(STATE.config.rangoFacturas||'')}</div>
+      <div class="rc-center">${escapeHtml(STATE.config.regimen||'')}</div>
+      <div class="rc-center" style="margin-top:4px;">${venta.fiado ? 'VENTA FIADA — Conserve este recibo' : 'Gracias por su compra'}</div>
+      ${!venta.fiado ? '<div class="rc-center">¡Vuelva pronto!</div>' : ''}
+      <div class="rc-center" style="margin-top:4px;">Factura de Venta No. ${venta.numero_factura ? String(venta.numero_factura).padStart(7,'0') : venta.id.slice(-6).toUpperCase()}</div>
+      <div class="rc-center">Tiquete generado por el sistema POS</div>
     `;
     setTimeout(()=> window.print(), 150);
   }
